@@ -1,7 +1,7 @@
-(ns medusa.db
+(ns clj.medusa.db
   (:require [korma.db :refer :all]
             [korma.core :refer :all]
-            [medusa.config :as config]
+            [clj.medusa.config :as config]
             [clojure.java.jdbc :as sql]
             [taoensso.timbre :as timbre]))
 
@@ -39,7 +39,7 @@
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        name TEXT NOT NULL UNIQUE,
        date TEXT NOT NULL,
-       config_url TEXT NOT NULL)"
+       url TEXT NOT NULL)"
 
     "CREATE TABLE IF NOT EXISTS metric
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,9 +59,12 @@
   (when (empty? (select user))
     (insert user (values {:email "ra.vitillo@gmail.com"})))
   (when (empty? (select detector))
-    (insert detector (values {:name "Histogram Regression Detector"
-                              :date "2014-05-01"
-                              :config_url "foobar.com"})))
+    (insert detector (values [{:name "Histogram Regression Detector"
+                               :date "2014-05-01"
+                               :url "foobar.com"}
+                              {:name "Mainthread-IO Regression Detector"
+                               :date "2014-05-01"
+                               :url "foobar1.com"}])))
   (when (empty? (select metric))
     (insert metric (values {:name "metric1", :description "metric descr", :detector_id 1}))
     (insert metric (values {:name "metric2", :description "metric descr", :detector_id 1})))

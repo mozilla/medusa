@@ -1,4 +1,4 @@
-(ns medusa.config
+(ns clj.medusa.config
   (:require [clojure.java.io :as io]
             [clojure.edn :as edn]
             [taoensso.timbre :as timbre]))

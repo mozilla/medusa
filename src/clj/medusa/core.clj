@@ -1,15 +1,14 @@
-(ns medusa.core
+(ns clj.medusa.core
   (:require [org.httpkit.server :as http]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.handler :as handler]
-            [medusa.config :as config]
-            [medusa.db :as db]
-            [ring.middleware.reload :as reload]
-            [medusa.resource :as resource]))
+            [clj.medusa.config :as config]
+            [clj.medusa.db :as db]
+            [clj.medusa.resource :as resource]
+            [ring.middleware.reload :as reload]))
 
 (defroutes app
-  (GET "/" [] "Hello World!")
   (GET "/detectors/" []
     (resource/detectors-resource))
   (GET "/detectors/:detector_id/metrics/" [& params]
@@ -22,6 +21,7 @@
     (resource/alerts-resource params))
   (GET "/detectors/:detector_id/alerts/" [& params]
     (resource/alerts-resource params))
+  (route/resources "/")
   (route/not-found "Page not found"))
 
 (config/load)

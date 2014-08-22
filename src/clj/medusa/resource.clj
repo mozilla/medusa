@@ -1,19 +1,19 @@
-(ns medusa.resource
+(ns clj.medusa.resource
   (:require [liberator.core :refer [resource defresource]]
             [liberator.dev :refer [wrap-trace]]
             [cheshire.core :as json]
-            [medusa.db :as db]))
+            [clj.medusa.db :as db]))
 
 (defn handle-ok [data-key ctx]
   (let [media-type (get-in ctx [:representation :media-type])
         data (get ctx data-key)]
     (condp = media-type
       "text/json" (json/generate-string data)
-      "application/clojure" (pr-str data))))
+      "application/edn" (pr-str data))))
 
 (defresource metrics-resource [query]
   :available-media-types
-  ["text/json" "application/clojure"]
+  ["application/edn" "text/json"]
 
   :allowed-methods
   [:get]
@@ -29,7 +29,7 @@
 
 (defresource alerts-resource [query]
   :available-media-types
-  ["text/json" "application/clojure"]
+  ["application/edn" "text/json"]
 
   :allowed-methods
   [:get]
@@ -44,7 +44,7 @@
 
 (defresource detectors-resource []
   :available-media-types
-  ["text/json" "application/clojure"]
+  ["application/edn" "text/json"]
 
   :allowed-methods
   [:get]
@@ -59,7 +59,7 @@
 
 (defresource alert-resource [query]
   :available-media-types
-  ["text/json" "application/clojure"]
+  ["application/edn" "text/json"]
 
   :allowed-methods
   [:get]
