@@ -28,36 +28,47 @@
                  :on-click #(go (>! event-channel [:detector-selected detector]))}
                 (:name detector)])]))))
 
-;(html [:select {:ref "metrics-list"
-                ;:on-change #(let [selected-metric (get name>metric (.. % -target -value))]
-                              ;(go
-                                ;(>! event-channel [:metric-selected selected-metric])))}
-       ;(for [metric metrics]
-         ;[:option (:name metric)])])
-
-(defn metrics-list [{:keys [metrics]} owner]
+(defn metrics-list [{:keys [metrics selected-metric]} owner]
   (reify
+    om/IDidMount
+    (did-mount [_]
+      (let [jq-element (js/$ (om/get-node owner "metrics-selector"))]
+        (.select2 jq-element #js {:placeholder ""
+                                  :allowClear true})))
+
     om/IDidUpdate
     (did-update [_ _ _]
       (let [event-channel (om/get-state owner :event-channel)
             name->metric (zipmap (map :name metrics) metrics)
             element (om/get-node owner "metrics-selector")
-            jq-element (js/$ element)
-            data (clj->js(for [metric metrics]
-                           #js {:id (:name metric), :text (:name metric)}))]
-        (.select2 jq-element #js {:placeholder "Bite me"
-                                  :data data})
+            jq-element (js/$ element)]
+        (.select2 jq-element #js {:placeholder ""
+                                  :allowClear true})
         (.on jq-element "change" (fn [e]
                                    (let [selected-metric (get name->metric (.-val e))]
                                      (go
-                                       (>! event-channel [:metric-selected selected-metric])))
-                                   ))))
-
+                                       (>! event-channel [:metric-selected selected-metric])))))))
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
-      (html [:div.form-group
-             [:div.input-group.select2-bootstrap-append
-              [:input.form-control.select2-allow-clear {:ref "metrics-selector" }] ]]))))
+      (html
+        [:div.form-group
+         [:label {:for "metrics-selector"} "Metric:"]
+         [:select.form-control {:ref "metrics-selector"
+                                :id "metrics-selector"}
+          [:option ""]
+          (for [metric metrics]
+            [:option (when (= metric selected-metric) {:selected true}) (:name metric)])]]))))
+
+
+(defn query-controls [{:keys [metrics selected-metric] :as state} owner]
+  (reify
+    om/IRenderState
+    (render-state [_ {:keys [event-channel]}]
+      (html
+        [:form
+         (om/build metrics-list
+                   (select-keys state [:metrics :selected-metric])
+                   {:init-state {:event-channel event-channel}})]))))
 
 (defn alerts-list [{:keys [alerts]}]
   (reify
@@ -108,36 +119,43 @@
             (condp = topic
               :detector-selected
               (do
+                (om/update! state [:selected-detector] message)
                 (om/update! state [:error :message] "")
-                (om/update! state [:selected-detector] message))
+                (om/update! state [:selected-metric] nil)
+                (om/update! state [:alerts] nil))
 
               :metric-selected
               (let [detector (:selected-detector @state)]
-                (om/update! state [:error :message] "")
-                (om/update! state [:selected-metric] message)))
+                (om/update! state [:selected-metric] message)
+                (om/update! state [:error :message] "")))
             ;retrieve resources
             (let [selected-detector (:selected-detector @state)
                   selected-metric (:selected-metric @state)]
               (match [selected-detector selected-metric]
                 [_ nil]
                 (do
-                  (update-resource state :metrics (str "/detectors/" (:id @message) "/metrics/"))
-                  (update-resource state :alerts (str "/detectors/" (:id @message) "/alerts/")))
+                  (update-resource state :metrics (str "/detectors/" (:id @selected-detector) "/metrics/"))
+                  (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/alerts/")))
 
                 [_ _]
-                (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/metrics/" (:id @message) "/alerts/"))))
+                (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/metrics/" (:id @selected-metric) "/alerts/"))))
             (recur)))))
 
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
-      (html [:div.container-fluid
-             (om/build detector-list
-                       (select-keys state [:detectors :selected-detector])
-                       {:init-state {:event-channel event-channel}})
-             (om/build metrics-list
-                       (select-keys state [:metrics])
-                       {:init-state {:event-channel event-channel}})
-             (om/build alerts-list (select-keys state [:alerts]))
-             (om/build error-notification (select-keys state [:error]))]))))
+      (html [:div.container
+             [:div.page-header
+              [:h1 "Telemetry alerting dashboard"]]
+             [:div.row
+              [:div.col-md-3
+               (om/build detector-list
+                         (select-keys state [:detectors :selected-detector])
+                         {:init-state {:event-channel event-channel}})
+               (om/build query-controls
+                         (select-keys state[:metrics :selected-metric])
+                         {:init-state {:event-channel event-channel}})
+               (om/build error-notification (select-keys state [:error]))]
+              [:div.col-md-9
+               (om/build alerts-list (select-keys state [:alerts]))]]]))))
 
 (om/root layout app-state {:target (.getElementById js/document "app")})
