@@ -17,4 +17,5 @@ goog.addDependency("../sablono/interpreter.js", ['sablono.interpreter'], ['sablo
 goog.addDependency("../sablono/core.js", ['sablono.core'], ['goog.dom', 'sablono.util', 'cljs.core', 'sablono.interpreter', 'clojure.string', 'clojure.walk']);
 goog.addDependency("../om/dom.js", ['om.dom'], ['cljs.core']);
 goog.addDependency("../om/core.js", ['om.core'], ['cljs.core', 'om.dom', 'goog.ui.IdGenerator']);
-goog.addDependency("../cljs/medusa/core.js", ['cljs.medusa.core'], ['ajax.core', 'cljs.core', 'cljs.core.async', 'sablono.core', 'om.core', 'cljs.reader']);
+goog.addDependency("../cljs/core/match.js", ['cljs.core.match'], ['cljs.core']);
+goog.addDependency("../cljs/medusa/core.js", ['cljs.medusa.core'], ['ajax.core', 'cljs.core', 'cljs.core.async', 'sablono.core', 'om.core', 'cljs.reader', 'cljs.core.match']);
