@@ -1,5 +1,6 @@
 (ns clj.medusa.core
   (:require [org.httpkit.server :as http]
+            [liberator.dev :refer [wrap-trace]]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.handler :as handler]
@@ -24,7 +25,11 @@
   (route/resources "/")
   (route/not-found "Page not found"))
 
+(def handler
+  (-> app
+      (wrap-trace :header :ui)))
+
 (config/load)
 (db/load)
 
-(http/run-server (reload/wrap-reload (handler/site #'app)) {:port (:port @config/state)})
+(http/run-server (reload/wrap-reload (handler/site #'handler)) {:port (:port @config/state)})

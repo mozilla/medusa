@@ -1,6 +1,5 @@
 (ns clj.medusa.resource
-  (:require [liberator.core :refer [resource defresource]]
-            [liberator.dev :refer [wrap-trace]]
+  (:require [liberator.core :refer [resource defresource by-method]]
             [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.set :as set]
@@ -62,21 +61,23 @@
     (when-let [detectors (not-empty (vec (db/get-detectors)))]
       {:detectors detectors}))
 
-  :malformed?
-  (fn [ctx]
-    (when (= :post (get-in ctx [:request :request-method]))
-      (let [content-type (get-in ctx [:request :content-type])
-            body (parse content-type (slurp (get-in ctx [:request :body])))]
-        (when-not (set/subset? #{:foo} (set (keys body)))
-          true)
-        [false :detector body])))
+  :processable?
+  (by-method
+    {:get true
+     :post
+     (fn [ctx]
+       (let [content-type (get-in ctx [:request :content-type])
+             body (parse content-type (slurp (get-in ctx [:request :body])))]
+         (when (and (db/detector-is-valid? body)
+                    (empty? (db/get-detectors body)))
+           {:detector body})))})
 
   :handle-ok
   (partial handle-ok :detectors)
 
   :post!
   (fn [ctx]
-    ))
+    (db/add-detector (get ctx :detector))))
 
 (defresource alert-resource [query]
   :available-media-types

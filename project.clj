@@ -14,6 +14,7 @@
                  [liberator "0.12.1"]
                  [org.clojure/core.async  "0.1.338.0-5c5012-alpha"]
                  [org.clojure/core.match  "0.2.1"]
+                 [clj-time "0.8.0"]
 
                  [org.clojure/clojurescript "0.0-2311"]
                  [om "0.7.0"]

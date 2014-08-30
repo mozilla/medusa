@@ -3,9 +3,14 @@
             [korma.core :refer :all]
             [clj.medusa.config :as config]
             [clojure.java.jdbc :as sql]
+            [clojure.set :as set]
+            [clj-time.core :as time]
+            [clj-time.format :as timef]
             [taoensso.timbre :as timbre]))
 
 (timbre/refer-timbre)
+
+(def time-formatter (timef/formatter "yyyy-MM-dd"))
 
 (declare user alert metric detector)
 
@@ -77,11 +82,24 @@
   (initialize-db)
   (populate_db_test))
 
-(defn get-detectors []
-  (->> (select detector
-        (fields :id :name :date))
-       (sort-by :date)
-       (reverse)))
+(defn detector-is-valid? [detector]
+  (set/subset? #{:name :url} (set (keys detector))))
+
+(defn get-detectors
+  ([]
+   (get-detectors {}))
+
+  ([{:keys [name] :as params}]
+   (let [name (if name name "%")]
+     (select detector
+       (fields :id :name :date)
+       (where (like :name name))
+       (order :date :DESC)))))
+
+(defn add-detector [{:keys [name url]}]
+  (let [date (->> (time/now) (timef/unparse time-formatter))]
+    (insert detector
+      (values {:name name, :date date, :url url}))))
 
 (defn get-alerts
   ([]
