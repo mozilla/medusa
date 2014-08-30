@@ -2,6 +2,8 @@
   (:require [liberator.core :refer [resource defresource]]
             [liberator.dev :refer [wrap-trace]]
             [cheshire.core :as json]
+            [clojure.edn :as edn]
+            [clojure.set :as set]
             [clj.medusa.db :as db]))
 
 (defn handle-ok [data-key ctx]
@@ -10,6 +12,12 @@
     (condp = media-type
       "text/json" (json/generate-string data)
       "application/edn" (pr-str data))))
+
+(defn parse [content-type data]
+  (condp = content-type
+    "application/json" (json/parse-string data true)
+    "application/edn" (edn/read data)
+    data))
 
 (defresource metrics-resource [query]
   :available-media-types
@@ -47,15 +55,28 @@
   ["application/edn" "text/json"]
 
   :allowed-methods
-  [:get]
+  [:get :post]
 
   :exists?
   (fn [ctx]
     (when-let [detectors (not-empty (vec (db/get-detectors)))]
       {:detectors detectors}))
 
+  :malformed?
+  (fn [ctx]
+    (when (= :post (get-in ctx [:request :request-method]))
+      (let [content-type (get-in ctx [:request :content-type])
+            body (parse content-type (slurp (get-in ctx [:request :body])))]
+        (when-not (set/subset? #{:foo} (set (keys body)))
+          true)
+        [false :detector body])))
+
   :handle-ok
-  (partial handle-ok :detectors))
+  (partial handle-ok :detectors)
+
+  :post!
+  (fn [ctx]
+    ))
 
 (defresource alert-resource [query]
   :available-media-types

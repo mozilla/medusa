@@ -9,18 +9,18 @@
             [ring.middleware.reload :as reload]))
 
 (defroutes app
-  (GET "/detectors/" []
-    (resource/detectors-resource))
-  (GET "/detectors/:detector_id/metrics/" [& params]
-    (resource/metrics-resource params))
-  (GET "/detectors/:detector_id/metrics/:metric_id" [& params]
-    (resource/metrics-resource params))
-  (GET "/detectors/:detector_id/metrics/:metric_id/alerts/" [& params]
-    (resource/alerts-resource params))
-  (GET "/detectors/:detector_id/metrics/:metric_id/alerts/:id" [& params]
-    (resource/alerts-resource params))
-  (GET "/detectors/:detector_id/alerts/" [& params]
-    (resource/alerts-resource params))
+  (ANY "/detectors/" []
+       (resource/detectors-resource))
+  (ANY "/detectors/:detector_id/metrics/" [& params]
+       (resource/metrics-resource params))
+  (ANY "/detectors/:detector_id/metrics/:metric_id" [& params]
+       (resource/metrics-resource params))
+  (ANY "/detectors/:detector_id/metrics/:metric_id/alerts/" [& params]
+       (resource/alerts-resource params))
+  (ANY "/detectors/:detector_id/metrics/:metric_id/alerts/:id" [& params]
+       (resource/alerts-resource params))
+  (ANY "/detectors/:detector_id/alerts/" [& params]
+       (resource/alerts-resource params))
   (route/resources "/")
   (route/not-found "Page not found"))
 
