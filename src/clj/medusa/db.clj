@@ -51,6 +51,7 @@
        detector_id INTEGER NOT NULL,
        name TEXT NOT NULL UNIQUE,
        description TEXT NOT NULL,
+       date TEXT NOT NULL,
        FOREIGN KEY(detector_id) REFERENCES detector(id))"
 
     "CREATE TABLE IF NOT EXISTS alert
@@ -71,11 +72,21 @@
                                :date "2014-05-01"
                                :url "foobar1.com"}])))
   (when (empty? (select metric))
-    (insert metric (values {:name "metric1", :description "metric descr", :detector_id 1}))
-    (insert metric (values {:name "metric2", :description "metric descr", :detector_id 1})))
+    (insert metric (values {:name "metric1",
+                            :date "2014-07-02",
+                            :description "metric descr",
+                            :detector_id 1}))
+    (insert metric (values {:name "metric2",
+                            :date "2014-07-02",
+                            :description "metric descr",
+                            :detector_id 1})))
   (when (empty? (select alert))
-    (insert alert (values {:date "2014-07-02", :description "alert descr", :metric_id 1}))
-    (insert alert (values {:date "2014-07-05", :description "alert descr", :metric_id 2}))))
+    (insert alert (values {:date "2014-07-02",
+                           :description "alert descr",
+                           :metric_id 1}))
+    (insert alert (values {:date "2014-07-05",
+                           :description "alert descr",
+                           :metric_id 2}))))
 
 (defn load []
   (info "Loading database...")
@@ -85,6 +96,21 @@
 (defn detector-is-valid? [detector]
   (set/subset? #{:name :url} (set (keys detector))))
 
+(defn metric-is-valid? [metric]
+  (set/subset? #{:name :description :detector_id} (set (keys metric))))
+
+(defn add-detector [{:keys [name url]}]
+  (let [date (->> (time/now) (timef/unparse time-formatter))]
+    (insert detector
+            (values {:name name, :date date, :url url}))))
+
+(defn add-metric [{:keys [detector_id name description]}]
+  (let [date (->> (time/now) (timef/unparse time-formatter))]
+    (insert metric
+            (values {:name name,
+                     :description description,
+                     :date date
+                     :detector_id detector_id}))))
 (defn get-detectors
   ([]
    (get-detectors {}))
@@ -95,11 +121,6 @@
        (fields :id :name :date)
        (where (like :name name))
        (order :date :DESC)))))
-
-(defn add-detector [{:keys [name url]}]
-  (let [date (->> (time/now) (timef/unparse time-formatter))]
-    (insert detector
-      (values {:name name, :date date, :url url}))))
 
 (defn get-alerts
   ([]
@@ -128,12 +149,14 @@
   ([]
    (get-metrics {}))
 
-  ([{:keys [:metric_id :detector_id]}]
+  ([{:keys [:metric_id :detector_id :name]}]
    (let [detector_id (if detector_id detector_id "%")
-         metric_id (if metric_id metric_id "%")]
+         metric_id (if metric_id metric_id "%")
+         name (if name name "%")]
      (->> (select metric
             (fields :id :name :description)
-            (where (like :id metric_id))
+            (where (and (like :id metric_id)
+                        (like :name name)))
             (with detector
               (fields [:id :detector_id])
               (where (like :detector_id detector_id))))))))
