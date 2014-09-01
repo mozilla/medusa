@@ -49,9 +49,7 @@
   :post!
   (fn [ctx]
     (let [metric (get ctx :metric)
-          rowid (-> (db/add-metric metric)
-                    first
-                    second)
+          rowid (db/add-metric metric)
           metric (assoc metric :metric_id rowid)]
       {:metric metric}))
 
@@ -69,12 +67,37 @@
   ["application/edn" "text/json"]
 
   :allowed-methods
-  [:get]
+  [:get :post]
 
   :exists?
   (fn [ctx]
     (when-let [alerts (not-empty (vec (db/get-alerts query)))]
       {:alerts alerts}))
+
+  :processable?
+  (by-method
+   {:get true
+
+    :post
+    (fn [ctx]
+      (let [query (merge (get-body ctx) query)]
+        (println (db/get-alerts query))
+        (when (and (db/alert-is-valid? query)
+                   (empty? (db/get-alerts query)))
+          {:alert query})))})
+
+
+  :post!
+  (fn [ctx]
+    (let [alert (:alert ctx)
+          rowid (db/add-alert alert)
+          alert (assoc alert :alert_id rowid)]
+      {:alert alert}))
+
+  :post-redirect?
+  (fn [ctx]
+    (let [alert (get ctx :alert)]
+      {:location (str "/detectors/" (:detector_id alert) "/metrics/" (:metric_id alert) "/alerts/" (:alert_id alert))}))
 
   :handle-ok
   (partial handle-ok :alerts))
@@ -108,7 +131,7 @@
   :post!
   (fn [ctx]
     (let [rowid (db/add-detector (get ctx :detector))]
-      {:rowid (-> rowid first second)}))
+      {:rowid rowid}))
 
   :post-redirect?
   (fn [ctx]

@@ -94,23 +94,39 @@
   (populate_db_test))
 
 (defn detector-is-valid? [detector]
-  (set/subset? #{:name :url} (set (keys detector))))
+  (= #{:name :url} (set (keys detector))))
 
 (defn metric-is-valid? [metric]
-  (set/subset? #{:name :description :detector_id} (set (keys metric))))
+  (= #{:name :description :detector_id} (set (keys metric))))
+
+(defn alert-is-valid? [alert]
+  (= #{:date :description :metric_id :detector_id} (set (keys alert))))
 
 (defn add-detector [{:keys [name url]}]
   (let [date (->> (time/now) (timef/unparse time-formatter))]
-    (insert detector
-            (values {:name name, :date date, :url url}))))
+    (-> (insert detector
+                (values {:name name, :date date, :url url}))
+        (first)
+        (second))))
 
 (defn add-metric [{:keys [detector_id name description]}]
   (let [date (->> (time/now) (timef/unparse time-formatter))]
-    (insert metric
-            (values {:name name,
-                     :description description,
-                     :date date
-                     :detector_id detector_id}))))
+    (-> (insert metric
+                (values {:name name,
+                         :description description,
+                         :date date
+                         :detector_id detector_id}))
+        (first)
+        (second))))
+
+(defn add-alert [{:keys [:metric_id :date :description :date]}] ; returns rowid
+  (-> (insert alert
+              (values {:date date
+                       :description description
+                       :metric_id metric_id}))
+      (first)
+      (second)))
+
 (defn get-detectors
   ([]
    (get-detectors {}))
@@ -126,16 +142,18 @@
   ([]
    (get-alerts {}))
 
-  ([{:keys [id detector_id metric_id from to] :as params}]
+  ([{:keys [id detector_id metric_id from to date] :as params}]
    (let [id (if id id "%")
          detector_id (if detector_id detector_id "%")
          metric_id (if metric_id metric_id "%")
          from (if from from "0000-00-00")
-         to (if to to "9999-00-00")]
+         to (if to to "9999-00-00")
+         date (if date date "%")]
      (->> (select alert
             (fields :id :date :description)
             (where (and (>= :date from)
                         (<= :date to)
+                        (like :date date)
                         (like :id id)))
             (order :date :DESC)
             (with metric
