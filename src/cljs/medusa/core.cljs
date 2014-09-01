@@ -85,16 +85,16 @@
     (render [_]
       (html [:div (:message error)]))))
 
-(defn get-resource [uri]
+(defn get-resource [update-key uri]
   (let [ch (chan)]
     (GET uri
       {:handler #(go (>! ch {:data %}))
-       :error-handler #(go (>! ch {:error (str "Failure to load detectors list, reason: " (:status-text %))}))})
+       :error-handler #(go (>! ch {:error (str "Failure to load " (name update-key) ", reason: " (:status-text %))}))})
     ch))
 
 (defn update-resource [state update-key uri]
   (go
-    (let [{:keys [data error]} (<! (get-resource uri))]
+    (let [{:keys [data error]} (<! (get-resource update-key uri))]
       (if-not error
         (om/update! state [update-key] data)
         (do

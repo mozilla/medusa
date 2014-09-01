@@ -10,8 +10,8 @@
             [ring.middleware.reload :as reload]))
 
 (defroutes app
-  (ANY "/detectors/" []
-       (resource/detectors-resource))
+  (ANY "/detectors/" [& params]
+       (resource/detectors-resource params))
   (ANY "/detectors/:detector_id/metrics/" [& params]
        (resource/metrics-resource params))
   (ANY "/detectors/:detector_id/metrics/:metric_id" [& params]

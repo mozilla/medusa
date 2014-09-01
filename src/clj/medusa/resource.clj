@@ -9,7 +9,15 @@
   (let [media-type (get-in ctx [:representation :media-type])
         data (get ctx data-key)]
     (condp = media-type
-      "text/json" (json/generate-string data)
+      "application/json" (json/generate-string data)
+      "application/edn" (pr-str data))))
+
+(defn handle-created [ks ctx]
+  (let [media-type (get-in ctx [:representation :media-type])
+        id (get-in ctx ks)
+        data {:id id}]
+    (condp = media-type
+      "application/json" (json/generate-string data)
       "application/edn" (pr-str data))))
 
 (defn parse [content-type data]
@@ -25,15 +33,19 @@
 
 (defresource metrics-resource [query]
   :available-media-types
-  ["application/edn" "text/json"]
+  ["application/edn" "application/json"]
 
   :allowed-methods
   [:get :post]
 
   :exists?
-  (fn [ctx]
-    (when-let [metrics (not-empty (vec (db/get-metrics query)))]
-      {:metrics metrics}))
+  (by-method
+   {:get
+    (fn [ctx]
+      (when-let [metrics (not-empty (vec (db/get-metrics query)))]
+        {:metrics metrics}))
+
+    :post true})
 
   :processable?
   (by-method
@@ -53,10 +65,10 @@
           metric (assoc metric :metric_id rowid)]
       {:metric metric}))
 
-  :post-redirect?
-  (fn [ctx]
-    (let [metric (get ctx :metric)]
-      {:location (str "/detectors/" (:detector_id metric) "/metrics/" (:metric_id metric))}))
+  :post-redirect? false
+
+  :handle-created
+  (partial handle-created [:metric :metric_id])
 
   :handle-ok
   (partial handle-ok :metrics))
@@ -64,15 +76,19 @@
 
 (defresource alerts-resource [query]
   :available-media-types
-  ["application/edn" "text/json"]
+  ["application/edn" "application/json"]
 
   :allowed-methods
   [:get :post]
 
   :exists?
-  (fn [ctx]
-    (when-let [alerts (not-empty (vec (db/get-alerts query)))]
-      {:alerts alerts}))
+  (by-method
+   {:get
+    (fn [ctx]
+      (when-let [alerts (not-empty (vec (db/get-alerts query)))]
+        {:alerts alerts}))
+
+    :post true})
 
   :processable?
   (by-method
@@ -81,11 +97,9 @@
     :post
     (fn [ctx]
       (let [query (merge (get-body ctx) query)]
-        (println (db/get-alerts query))
         (when (and (db/alert-is-valid? query)
                    (empty? (db/get-alerts query)))
           {:alert query})))})
-
 
   :post!
   (fn [ctx]
@@ -94,25 +108,29 @@
           alert (assoc alert :alert_id rowid)]
       {:alert alert}))
 
-  :post-redirect?
-  (fn [ctx]
-    (let [alert (get ctx :alert)]
-      {:location (str "/detectors/" (:detector_id alert) "/metrics/" (:metric_id alert) "/alerts/" (:alert_id alert))}))
+  :post-redirect? false
+
+  :handle-created
+  (partial handle-created [:alert :alert_id])
 
   :handle-ok
   (partial handle-ok :alerts))
 
-(defresource detectors-resource []
+(defresource detectors-resource [query]
   :available-media-types
-  ["application/edn" "text/json"]
+  ["application/edn" "application/json"]
 
   :allowed-methods
   [:get :post]
 
   :exists?
-  (fn [ctx]
-    (when-let [detectors (not-empty (vec (db/get-detectors)))]
-      {:detectors detectors}))
+  (by-method
+   {:get
+    (fn [ctx]
+      (when-let [detectors (not-empty (vec (db/get-detectors query)))]
+        {:detectors detectors}))
+
+    :post true})
 
   :processable?
   (by-method
@@ -133,13 +151,14 @@
     (let [rowid (db/add-detector (get ctx :detector))]
       {:rowid rowid}))
 
-  :post-redirect?
-  (fn [ctx]
-    {:location (format "/detectors/%d" (get ctx :rowid))}))
+  :post-redirect? false
+
+  :handle-created
+  (partial handle-created [:rowid]))
 
 (defresource alert-resource [query]
   :available-media-types
-  ["application/edn" "text/json"]
+  ["application/edn" "application/json"]
 
   :allowed-methods
   [:get]
