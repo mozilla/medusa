@@ -12,6 +12,8 @@
 (defroutes app
   (ANY "/detectors/" [& params]
        (resource/detectors-resource params))
+  (ANY "/detectors/:id" [& params]
+       (resource/detector-resource params))
   (ANY "/detectors/:detector_id/metrics/" [& params]
        (resource/metrics-resource params))
   (ANY "/detectors/:detector_id/metrics/:metric_id" [& params]

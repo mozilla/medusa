@@ -33,28 +33,28 @@
                 :subname (:database @config/state)})
   (defdb korma-db db-spec)
   (sql/db-do-commands
-    db-spec
-    "PRAGMA foreign_keys = ON"
+   db-spec
+   "PRAGMA foreign_keys = ON"
 
-    "CREATE TABLE IF NOT EXISTS user
+   "CREATE TABLE IF NOT EXISTS user
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        email TEXT NOT NULL UNIQUE)"
 
-    "CREATE TABLE IF NOT EXISTS detector
+   "CREATE TABLE IF NOT EXISTS detector
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        name TEXT NOT NULL UNIQUE,
        date TEXT NOT NULL,
        url TEXT NOT NULL)"
 
-    "CREATE TABLE IF NOT EXISTS metric
+   "CREATE TABLE IF NOT EXISTS metric
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        detector_id INTEGER NOT NULL,
-       name TEXT NOT NULL UNIQUE,
+       name TEXT NOT NULL,
        description TEXT NOT NULL,
        date TEXT NOT NULL,
        FOREIGN KEY(detector_id) REFERENCES detector(id))"
 
-    "CREATE TABLE IF NOT EXISTS alert
+   "CREATE TABLE IF NOT EXISTS alert
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        metric_id INTEGER NOT NULL,
        date TEXT NOT NULL,
@@ -129,52 +129,55 @@
 
 (defn get-detectors
   ([]
-   (get-detectors {}))
+     (get-detectors {}))
 
-  ([{:keys [name] :as params}]
-   (let [name (if name name "%")]
-     (select detector
-       (fields :id :name :date)
-       (where (like :name name))
-       (order :date :DESC)))))
+  ([{:keys [id name] :as params}]
+     (let [id (if id id "%")
+           name (if name name "%")]
+       (select detector
+               (fields :id :name :date)
+               (where (and
+                       (like :id id)
+                       (like :name name)))
+               (order :date :DESC)))))
 
 (defn get-alerts
   ([]
-   (get-alerts {}))
+     (get-alerts {}))
 
   ([{:keys [id detector_id metric_id from to date] :as params}]
-   (let [id (if id id "%")
-         detector_id (if detector_id detector_id "%")
-         metric_id (if metric_id metric_id "%")
-         from (if from from "0000-00-00")
-         to (if to to "9999-00-00")
-         date (if date date "%")]
-     (->> (select alert
-            (fields :id :date :description)
-            (where (and (>= :date from)
-                        (<= :date to)
-                        (like :date date)
-                        (like :id id)))
-            (order :date :DESC)
-            (with metric
-              (fields [:id :metric_id])
-              (where (like :metric_id metric_id))
-              (with detector
-                (fields [:id :detector_id])
-                (where (like :detector_id detector_id)))))))))
+     (let [id (if id id "%")
+           detector_id (if detector_id detector_id "%")
+           metric_id (if metric_id metric_id "%")
+           from (if from from "0000-00-00")
+           to (if to to "9999-00-00")
+           date (if date date "%")]
+       (->> (select alert
+                    (fields :id :date :description)
+                    (where (and (>= :date from)
+                                (<= :date to)
+                                (like :date date)
+                                (like :id id)))
+                    (order :date :DESC)
+                    (with metric
+                          (fields [:id :metric_id])
+                          (where (like :metric_id metric_id))
+                          (with detector
+                                (fields [:id :detector_id])
+                                (where (like :detector_id detector_id)))))))))
 
 (defn get-metrics
   ([]
-   (get-metrics {}))
+     (get-metrics {}))
 
   ([{:keys [:metric_id :detector_id :name]}]
-   (let [detector_id (if detector_id detector_id "%")
-         metric_id (if metric_id metric_id "%")
-         name (if name name "%")]
-     (->> (select metric
-            (fields :id :name :description)
-            (where (and (like :id metric_id)
-                        (like :name name)))
-            (with detector
-              (fields [:id :detector_id])
-              (where (like :detector_id detector_id))))))))
+     (let [detector_id (if detector_id detector_id "%")
+           metric_id (if metric_id metric_id "%")
+           name (if name name "%")]
+       (->> (select metric
+                    (fields :id :name :description)
+                    (where (and (like :id metric_id)
+                                (like :name name)))
+                    (with detector
+                          (fields [:id :detector_id])
+                          (where (like :detector_id detector_id))))))))

@@ -32,151 +32,90 @@
     body))
 
 (defresource metrics-resource [query]
-  :available-media-types
-  ["application/edn" "application/json"]
-
-  :allowed-methods
-  [:get :post]
-
-  :exists?
-  (by-method
-   {:get
-    (fn [ctx]
-      (when-let [metrics (not-empty (vec (db/get-metrics query)))]
-        {:metrics metrics}))
-
-    :post true})
-
-  :processable?
-  (by-method
-   {:get true
-
-    :post
-    (fn [ctx]
-      (let [body (merge (get-body ctx) query)]
-        (when (and (db/metric-is-valid? body)
-                   (empty? (db/get-metrics body)))
-          {:metric body})))})
-
-  :post!
-  (fn [ctx]
-    (let [metric (get ctx :metric)
-          rowid (db/add-metric metric)
-          metric (assoc metric :metric_id rowid)]
-      {:metric metric}))
-
-  :post-redirect? false
-
-  :handle-created
-  (partial handle-created [:metric :metric_id])
-
-  :handle-ok
-  (partial handle-ok :metrics))
-
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:get :post]
+  :exists? (by-method
+            {:get
+             (fn [ctx]
+               (when-let [metrics (not-empty (vec (db/get-metrics query)))]
+                 {:metrics metrics}))
+             :post true})
+  :processable? (by-method
+                 {:get true
+                  :post (fn [ctx]
+                          (let [body (merge (get-body ctx) query)]
+                            (when (and (db/metric-is-valid? body)
+                                       (empty? (db/get-metrics body)))
+                              {:metric body})))})
+  :post! (fn [ctx]
+           (let [metric (get ctx :metric)
+                 rowid (db/add-metric metric)
+                 metric (assoc metric :metric_id rowid)]
+             {:metric metric}))
+  :handle-created (partial handle-created [:metric :metric_id])
+  :handle-ok (partial handle-ok :metrics))
 
 (defresource alerts-resource [query]
-  :available-media-types
-  ["application/edn" "application/json"]
-
-  :allowed-methods
-  [:get :post]
-
-  :exists?
-  (by-method
-   {:get
-    (fn [ctx]
-      (when-let [alerts (not-empty (vec (db/get-alerts query)))]
-        {:alerts alerts}))
-
-    :post true})
-
-  :processable?
-  (by-method
-   {:get true
-
-    :post
-    (fn [ctx]
-      (let [query (merge (get-body ctx) query)]
-        (when (and (db/alert-is-valid? query)
-                   (empty? (db/get-alerts query)))
-          {:alert query})))})
-
-  :post!
-  (fn [ctx]
-    (let [alert (:alert ctx)
-          rowid (db/add-alert alert)
-          alert (assoc alert :alert_id rowid)]
-      {:alert alert}))
-
-  :post-redirect? false
-
-  :handle-created
-  (partial handle-created [:alert :alert_id])
-
-  :handle-ok
-  (partial handle-ok :alerts))
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:get :post]
+  :exists? (by-method
+            {:get (fn [ctx]
+                    (when-let [alerts (not-empty (vec (db/get-alerts query)))]
+                      {:alerts alerts}))
+             :post true})
+  :processable? (by-method {:get true
+                            :post (fn [ctx]
+                                    (let [query (merge (get-body ctx) query)]
+                                      (when (and (db/alert-is-valid? query)
+                                                 (empty? (db/get-alerts query)))
+                                        {:alert query})))})
+  :post! (fn [ctx]
+           (let [alert (:alert ctx)
+                 rowid (db/add-alert alert)
+                 alert (assoc alert :alert_id rowid)]
+             {:alert alert}))
+  :handle-created (partial handle-created [:alert :alert_id])
+  :handle-ok (partial handle-ok :alerts))
 
 (defresource detectors-resource [query]
-  :available-media-types
-  ["application/edn" "application/json"]
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:get :post]
+  :exists? (by-method {:get (fn [ctx] (when-let [detectors (not-empty (vec (db/get-detectors query)))]
+                                        {:detectors detectors}))
+                       :post true})
+  :processable? (let [continue? (fn [ctx]
+                                  (let [body (get-body ctx)]
+                                    (when (and (db/detector-is-valid? body)
+                                               (empty? (db/get-detectors body)))
+                                      {:detector body})))]
+                  (by-method
+                   {:get true
+                    :post continue?}))
+  :post! (fn [ctx]
+           (let [rowid (db/add-detector (get ctx :detector))]
+             {:rowid rowid}))
+  :handle-ok (partial handle-ok :detectors)
+  :handle-created (partial handle-created [:rowid]))
 
-  :allowed-methods
-  [:get :post]
-
-  :exists?
-  (by-method
-   {:get
-    (fn [ctx]
-      (when-let [detectors (not-empty (vec (db/get-detectors query)))]
-        {:detectors detectors}))
-
-    :post true})
-
-  :processable?
-  (by-method
-    {:get true
-
-     :post
-     (fn [ctx]
-       (let [body (get-body ctx)]
-         (when (and (db/detector-is-valid? body)
-                    (empty? (db/get-detectors body)))
-           {:detector body})))})
-
-  :handle-ok
-  (partial handle-ok :detectors)
-
-  :post!
-  (fn [ctx]
-    (let [rowid (db/add-detector (get ctx :detector))]
-      {:rowid rowid}))
-
-  :post-redirect? false
-
-  :handle-created
-  (partial handle-created [:rowid]))
+(defresource detector-resource [query]
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:delete]
+  :exists? (fn [ctx]
+             (when-let [detector (first (db/get-detectors query))]
+               {:detector detector}))
+  :delete! (fn [ctx]
+             ;;TODO: useful for debugging))
 
 (defresource alert-resource [query]
-  :available-media-types
-  ["application/edn" "application/json"]
-
-  :allowed-methods
-  [:get]
-
-  :malformed?
-  (fn [ctx]
-    (not (and (contains? query :id)
-              (contains? query :metric_id)
-              (contains? query :detector_id))))
-
-  :exists?
-  (fn [ctx]
-    (when-let [alert (db/get-alerts query)]
-      {:alert alert}))
-
-  :etag
-  (fn [ctx]
-    (get-in ctx [:alert :date]))
-
-  :handle-ok
-  (partial handle-ok :alert))
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:get]
+  :malformed? (fn [ctx]
+                (not (and (contains? query :id)
+                          (contains? query :metric_id)
+                          (contains? query :detector_id))))
+  :exists? (fn [ctx]
+             (when-let [alert (db/get-alerts query)]
+               {:alert alert}))
+  :etag (fn [ctx]
+          (get-in ctx [:alert :date]))
+  :handle-ok (partial handle-ok :alert))
