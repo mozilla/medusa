@@ -4,18 +4,26 @@
             [sablono.core :as html :refer-macros  [html]]
             [cljs.reader :as reader]
             [ajax.core :refer  [GET POST]]
-            [cljs.core.match])
+            [cljs.core.match]
+            [cljs-time.core :as time]
+            [cljs-time.format :as timef])
   (:require-macros [cljs.core.async.macros :refer [go]]
                    [cljs.core.match.macros :refer [match]]))
 
 (enable-console-print!)
 
-(def app-state (atom {:detectors []
-                      :metrics []
-                      :alerts []
-                      :selected-detector nil
-                      :selected-metric nil
-                      :error {}}))
+(let [date-formatter (timef/formatter "yyyy-MM-dd")
+      end-date (time/today-at 12 00)
+      start-date (time/minus end-date (time/months 1))
+      end-date (timef/unparse date-formatter end-date)
+      start-date (timef/unparse date-formatter start-date)]
+  (def app-state (atom {:detectors []
+                        :metrics []
+                        :alerts []
+                        :selected-detector nil
+                        :selected-metric nil
+                        :selected-date-range [start-date end-date]
+                        :error {}})))
 
 (defn detector-list [{:keys [detectors selected-detector]}]
   (reify
@@ -59,13 +67,27 @@
          (for [metric (sort-by :name metrics)]
            [:option (when (= metric selected-metric) {:selected true}) (:name metric)])]]))))
 
-(defn date-selector [state owner]
+(defn date-selector [{:keys [selected-date-range]} owner]
   (reify
+    om/IDidMount
+    (did-mount [_]
+      (let [start-element (js/$ (om/get-node owner "start-date"))
+            end-element (js/$ (om/get-node owner "end-date"))
+            start-datepicker (.datepicker start-element #js {:format "yyyy-mm-dd"})
+            end-datepicker (.datepicker end-element #js {:format "yyyy-mm-dd"})]
+        start-datepicker))
+
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
-      (html [:div "FOO"]))))
+      (html
+       [:div.form-group
+        [:label {:for "start-date"} "From: "]
+        (html/text-field {:ref "start-date", :class "form-control"} "start-date" (get selected-date-range 0))
 
-(defn query-controls [{:keys [metrics selected-metric] :as state} owner]
+        [:label {:for "end-date"} "To: "]
+        (html/text-field {:ref "end-date", :class "form-control"} "end-date" (get selected-date-range 1))]))))
+
+(defn query-controls [{:keys [metrics selected-metric selected-date-range] :as state} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
@@ -75,7 +97,7 @@
                   (select-keys state [:metrics :selected-metric])
                   {:init-state {:event-channel event-channel}})
         (om/build date-selector
-                  state
+                  (select-keys state [:selected-date-range])
                   {:init-state {:event-channel event-channel}})]))))
 
 (defn alert-description->googleframe [date description]
@@ -195,16 +217,30 @@
                   (om/update! state [:error :message] "")))
                                         ;retrieve resources
               (let [selected-detector (:selected-detector @state)
-                    selected-metric (:selected-metric @state)]
+                    selected-metric (:selected-metric @state)
+                    selected-start-date (get-in @state [:selected-date-range 0])
+                    selected-end-date (get-in @state [:selected-date-range 1])]
                 (match [selected-detector selected-metric]
                        [_ nil]
                        (do
-                         (update-resource state :metrics (str "/detectors/" (:id @selected-detector) "/metrics/"))
-                         (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/alerts/")))
+                         (update-resource state :metrics (str "/detectors/"
+                                                              (:id @selected-detector)
+                                                              "/metrics/"))
+                         (update-resource state :alerts (str "/detectors/"
+                                                             (:id @selected-detector)
+                                                             "/alerts/"
+                                                             "?start-date=" selected-start-date
+                                                             "?end-date=" selected-end-date)))
 
                        [_ _]
                        (do
-                         (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/metrics/" (:id @selected-metric) "/alerts/")))))
+                         (update-resource state :alerts (str "/detectors/"
+                                                             (:id @selected-detector)
+                                                             "/metrics/"
+                                                             (:id @selected-metric)
+                                                             "/alerts/"
+                                                             "?start-date=" selected-start-date
+                                                             "?end-date=" selected-end-date)))))
               (recur))))))
 
     om/IRenderState
@@ -218,7 +254,7 @@
                          (select-keys state [:detectors :selected-detector])
                          {:init-state {:event-channel event-channel}})
                (om/build query-controls
-                         (select-keys state[:metrics :selected-metric])
+                         (select-keys state[:metrics :selected-metric :selected-date-range])
                          {:init-state {:event-channel event-channel}})
                (om/build error-notification (select-keys state [:error]))]
               [:div.col-md-9
