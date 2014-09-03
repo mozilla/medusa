@@ -104,7 +104,8 @@
              (when-let [detector (first (db/get-detectors query))]
                {:detector detector}))
   :delete! (fn [ctx]
-             ;;TODO: useful for debugging))
+             ;;TODO: useful for debugging
+             ))
 
 (defresource alert-resource [query]
   :available-media-types ["application/edn" "application/json"]

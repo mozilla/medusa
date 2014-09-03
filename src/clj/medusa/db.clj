@@ -82,10 +82,10 @@
                             :detector_id 1})))
   (when (empty? (select alert))
     (insert alert (values {:date "2014-07-02",
-                           :description "alert descr",
-                           :metric_id 1}))
+                           :description "{}",
+                           :metric_id 2}))
     (insert alert (values {:date "2014-07-05",
-                           :description "alert descr",
+                           :description "{}",
                            :metric_id 2}))))
 
 (defn load []

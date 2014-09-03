@@ -32,7 +32,8 @@
   (reify
     om/IDidMount
     (did-mount [_]
-      (let [jq-element (js/$ (om/get-node owner "metrics-selector"))]
+      (let [element (om/get-node owner "metrics-selector")
+            jq-element (js/$ element)]
         (.select2 jq-element #js {:placeholder ""
                                   :allowClear true})))
 
@@ -42,8 +43,7 @@
             name->metric (zipmap (map :name metrics) metrics)
             element (om/get-node owner "metrics-selector")
             jq-element (js/$ element)]
-        (.select2 jq-element #js {:placeholder ""
-                                  :allowClear true})
+        (.off jq-element)
         (.on jq-element "change" (fn [e]
                                    (let [selected-metric (get name->metric (.-val e))]
                                      (go
@@ -51,33 +51,85 @@
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
       (html
-        [:div.form-group
-         [:label {:for "metrics-selector"} "Metric:"]
-         [:select.form-control {:ref "metrics-selector"
-                                :id "metrics-selector"}
-          [:option ""]
-          (for [metric metrics]
-            [:option (when (= metric selected-metric) {:selected true}) (:name metric)])]]))))
+       [:div.form-group
+        [:label {:for "metrics-selector"} "Metric:"]
+        [:select.form-control {:ref "metrics-selector"
+                               :id "metrics-selector"}
+         [:option ""]
+         (for [metric (sort-by :name metrics)]
+           [:option (when (= metric selected-metric) {:selected true}) (:name metric)])]]))))
 
+(defn date-selector [state owner]
+  (reify
+    om/IRenderState
+    (render-state [_ {:keys [event-channel]}]
+      (html [:div "FOO"]))))
 
 (defn query-controls [{:keys [metrics selected-metric] :as state} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
       (html
-        [:form
-         (om/build metrics-list
-                   (select-keys state [:metrics :selected-metric])
-                   {:init-state {:event-channel event-channel}})]))))
+       [:form
+        (om/build metrics-list
+                  (select-keys state [:metrics :selected-metric])
+                  {:init-state {:event-channel event-channel}})
+        (om/build date-selector
+                  state
+                  {:init-state {:event-channel event-channel}})]))))
+
+(defn alert-description->googleframe [date description]
+  (let [series (.-series description)
+        series-label (.-series-label description)
+        reference-series (.-reference-series description)
+        reference-series-label (.-reference-series-label description)
+        buckets (.-buckets description)]
+    (clj->js (concat [#js ["Buckets" series-label reference-series-label]]
+                     (map (fn [a b c] #js [(str a) b c]) buckets series reference-series)))))
+
+
+(defn alert-graph [{:keys [description date]} owner]
+  (let [draw-chart (fn []
+                     (let [element (om/get-node owner "alert-description")
+                           chart (js/google.visualization.LineChart. element)
+                           data (->> (alert-description->googleframe date description)
+                                     (.arrayToDataTable js/google.visualization))
+                           options #js {:curveType 'function'
+                                        :height 500
+                                        :colors #js ["red", "black"]
+                                        :vAxis #js {:title (.-y_label description)}
+                                        :hAxis #js {:title (.-x_label description)
+                                                    :slantedText true
+                                                    :slatedTextAngle 90}}]
+                       (.draw chart data options)))]
+    (reify
+      om/IDidMount
+      (did-mount [_]
+        (draw-chart))
+
+      om/IDidUpdate
+      (did-update [_ _ _]
+        (draw-chart))
+
+      om/IRender
+      (render [_]
+        (html [:a.list-group-item
+               [:div
+                [:h5.text-center (.-title description)]]
+               [:div {:ref "alert-description"}]])))))
+
+(defn alert [{:keys [description date]} owner]
+  (let [description (.parse js/JSON description)]
+    (condp = (.-type description)
+      "graph" (alert-graph {:date date, :description description} owner)
+      nil)))
 
 (defn alerts-list [{:keys [alerts]}]
   (reify
     om/IRender
     (render [_]
       (html [:div.list-group
-             (for [alert alerts]
-               [:a.list-group-item
-                (:description alert)])]))))
+             (om/build-all alert alerts)]))))
 
 (defn error-notification [{:keys [error]}]
   (reify
@@ -88,8 +140,8 @@
 (defn get-resource [update-key uri]
   (let [ch (chan)]
     (GET uri
-      {:handler #(go (>! ch {:data %}))
-       :error-handler #(go (>! ch {:error (str "Failure to load " (name update-key) ", reason: " (:status-text %))}))})
+         {:handler #(go (>! ch {:data %}))
+          :error-handler #(go (>! ch {:error (str "Failure to load " (name update-key) ", reason: " (:status-text %))}))})
     ch))
 
 (defn update-resource [state update-key uri]
@@ -101,6 +153,16 @@
           (om/update! state [update-key] nil)
           (om/update! state [:error :message] error))))))
 
+(defn load-google-charts []
+  (let [ch (chan)
+        cb (fn []
+             (go
+               (>! ch "LOADED")
+               (close! ch)))]
+    (.load js/google "visualization" "1" (clj->js {:packages ["corechart"]}))
+    (.setOnLoadCallback js/google cb)
+    ch))
+
 (defn layout [state owner]
   (reify
     om/IInitState
@@ -109,37 +171,41 @@
 
     om/IWillMount
     (will-mount [_]
-      (update-resource state :detectors "/detectors/")
 
-      (go
-        (loop []
-          (let [event-channel (om/get-state owner :event-channel)
-                [topic message] (<! event-channel)]
-            ;process event
-            (condp = topic
-              :detector-selected
-              (do
-                (om/update! state [:selected-detector] message)
-                (om/update! state [:error :message] "")
-                (om/update! state [:selected-metric] nil)
-                (om/update! state [:alerts] nil))
+      (let [google-load-ch (load-google-charts)]
+        (go
+          (<! google-load-ch)
+          (update-resource state :detectors "/detectors/")
 
-              :metric-selected
-              (let [detector (:selected-detector @state)]
-                (om/update! state [:selected-metric] message)
-                (om/update! state [:error :message] "")))
-            ;retrieve resources
-            (let [selected-detector (:selected-detector @state)
-                  selected-metric (:selected-metric @state)]
-              (match [selected-detector selected-metric]
-                [_ nil]
+          (loop []
+            (let [event-channel (om/get-state owner :event-channel)
+                  [topic message] (<! event-channel)]
+              ;process event
+              (condp = topic
+                :detector-selected
                 (do
-                  (update-resource state :metrics (str "/detectors/" (:id @selected-detector) "/metrics/"))
-                  (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/alerts/")))
+                  (om/update! state [:selected-detector] message)
+                  (om/update! state [:error :message] "")
+                  (om/update! state [:selected-metric] nil)
+                  (om/update! state [:alerts] nil))
 
-                [_ _]
-                (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/metrics/" (:id @selected-metric) "/alerts/"))))
-            (recur)))))
+                :metric-selected
+                (let [detector (:selected-detector @state)]
+                  (om/update! state [:selected-metric] message)
+                  (om/update! state [:error :message] "")))
+                                        ;retrieve resources
+              (let [selected-detector (:selected-detector @state)
+                    selected-metric (:selected-metric @state)]
+                (match [selected-detector selected-metric]
+                       [_ nil]
+                       (do
+                         (update-resource state :metrics (str "/detectors/" (:id @selected-detector) "/metrics/"))
+                         (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/alerts/")))
+
+                       [_ _]
+                       (do
+                         (update-resource state :alerts (str "/detectors/" (:id @selected-detector) "/metrics/" (:id @selected-metric) "/alerts/")))))
+              (recur))))))
 
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
