@@ -10,6 +10,8 @@
             [ring.middleware.reload :as reload]))
 
 (defroutes app
+  (ANY "/login" [& params]
+       (resource/login params))
   (ANY "/detectors/" [& params]
        (resource/detectors-resource params))
   (ANY "/detectors/:id" [& params]
@@ -23,7 +25,6 @@
   (ANY "/detectors/:detector_id/metrics/:metric_id/alerts/:id" [& params]
        (resource/alerts-resource params))
   (ANY "/detectors/:detector_id/alerts/" [& params]
-       (println params)
        (resource/alerts-resource params))
   (route/resources "/")
   (route/not-found "Page not found"))

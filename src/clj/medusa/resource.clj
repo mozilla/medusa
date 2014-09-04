@@ -1,16 +1,10 @@
 (ns clj.medusa.resource
   (:require [liberator.core :refer [resource defresource by-method]]
             [cheshire.core :as json]
+            [org.httpkit.client :as http]
             [clojure.edn :as edn]
             [clojure.set :as set]
             [clj.medusa.db :as db]))
-
-(defn handle-ok [data-key ctx]
-  (let [media-type (get-in ctx [:representation :media-type])
-        data (get ctx data-key)]
-    (condp = media-type
-      "application/json" (json/generate-string data)
-      "application/edn" (pr-str data))))
 
 (defn handle-created [ks ctx]
   (let [media-type (get-in ctx [:representation :media-type])
@@ -53,7 +47,7 @@
                  metric (assoc metric :metric_id rowid)]
              {:metric metric}))
   :handle-created (partial handle-created [:metric :metric_id])
-  :handle-ok (partial handle-ok :metrics))
+  :handle-ok :metrics)
 
 (defresource alerts-resource [query]
   :available-media-types ["application/edn" "application/json"]
@@ -75,7 +69,7 @@
                  alert (assoc alert :alert_id rowid)]
              {:alert alert}))
   :handle-created (partial handle-created [:alert :alert_id])
-  :handle-ok (partial handle-ok :alerts))
+  :handle-ok :alerts)
 
 (defresource detectors-resource [query]
   :available-media-types ["application/edn" "application/json"]
@@ -94,7 +88,7 @@
   :post! (fn [ctx]
            (let [rowid (db/add-detector (get ctx :detector))]
              {:rowid rowid}))
-  :handle-ok (partial handle-ok :detectors)
+  :handle-ok :detectors
   :handle-created (partial handle-created [:rowid]))
 
 (defresource detector-resource [query]
@@ -119,4 +113,19 @@
                {:alert alert}))
   :etag (fn [ctx]
           (get-in ctx [:alert :date]))
-  :handle-ok (partial handle-ok :alert))
+  :handle-ok :alert)
+
+(defresource login [{:keys [assertion]}]
+  :available-media-types ["application/json" "application/edn"]
+  :allowed-methods [:get]
+  :authorized? (fn [ctx]
+                 (let [options {:query-params {:assertion assertion
+                                               :audience "http://localhost:8080"}}
+                       {:keys [status body error]} @(http/post "https://verifier.login.persona.org/verify" options)]
+                   (when (= status 200)
+                     (let [{:keys [status] :as response} (json/parse-string body true)]
+                       (when (= status "okay")
+                         (println "VERIFIED, yay")
+                         )))
+                   ))
+  :handle-ok (fn [ctx] {:foo "bar"}))

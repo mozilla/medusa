@@ -21,7 +21,8 @@
       start-date (time/minus end-date (time/months 1))
       end-date (timef/unparse date-formatter end-date)
       start-date (timef/unparse date-formatter start-date)]
-  (def app-state (atom {:detectors []
+  (def app-state (atom {:login {:status "Login", :user nil}
+                        :detectors []
                         :metrics []
                         :alerts []
                         :selected-detector nil
@@ -66,7 +67,6 @@
                                        (>! event-channel [:metric-selected selected-metric])))))))
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
-      (println "selecting")
       (html
        [:div.form-group
         [:label {:for "metrics-selector"} "Metric:"]
@@ -88,8 +88,10 @@
             format-date #(timef/unparse date-formatter (time/plus (time/date-time (.-date %))
                                                                   (time/days 1)))]
         (.on start-datepicker "changeDate" (fn [e]
+                                             (.datepicker start-element "hide")
                                              (go (>! event-channel [:from-selected (format-date e)]))))
         (.on end-datepicker "changeDate" (fn [e]
+                                           (.datepicker end-element "hide")
                                            (go (>! event-channel [:to-selected (format-date e)]))))
         start-datepicker))
 
@@ -212,6 +214,30 @@
     (.setOnLoadCallback js/google cb)
     ch))
 
+(defn persona [{:keys [status user] :as state} owner]
+  (reify
+    om/IWillMount
+    (will-mount [_]
+      (let [login (fn [assertion]
+                    (GET "/login"
+                         {:handler #(println "handler")
+                          :format :raw
+                          :params {:assertion assertion}
+                          :error-handler #(println "error-handler")}))]
+        (js/navigator.id.watch #js {:loggedInUser user
+                                    :onlogin (fn [assertion]
+                                               (login assertion))
+                                    :onlogout (fn []
+                                                )})))
+
+    om/IRenderState
+    (render-state [_ _]
+      (html
+       [:div.text-right
+        [:button.btn.btn-default {:on-click (fn [_]
+                                              (js/navigator.id.request))}
+         status]]))))
+
 (defn layout [state owner]
   (reify
     om/IInitState
@@ -220,7 +246,6 @@
 
     om/IWillMount
     (will-mount [_]
-
       (let [google-load-ch (load-google-charts)]
         (go
           (<! google-load-ch)
@@ -233,7 +258,6 @@
               (condp = topic
                 :detector-selected
                 (do
-                  (println "detector-selected")
                   (om/transact! state (fn [state]
                                         (let [state (assoc state
                                                       :selected-detector message
@@ -296,6 +320,10 @@
               [:h1 "Telemetry alerting dashboard"]]
              [:div.row
               [:div.col-md-3
+               (om/build persona
+                         (:login state)
+                         {:init-state {:event-channel event-channel}})
+               [:br]
                (om/build detector-list
                          (select-keys state [:detectors :selected-detector])
                          {:init-state {:event-channel event-channel}})
