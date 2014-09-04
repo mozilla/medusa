@@ -4,11 +4,15 @@
             [sablono.core :as html :refer-macros  [html]]
             [cljs.reader :as reader]
             [ajax.core :refer  [GET POST]]
+            [weasel.repl :as ws-repl]
+            [clojure.browser.repl :as repl]
             [cljs.core.match]
             [cljs-time.core :as time]
             [cljs-time.format :as timef])
   (:require-macros [cljs.core.async.macros :refer [go]]
                    [cljs.core.match.macros :refer [match]]))
+
+(ws-repl/connect "ws://localhost:9001" :verbose true)
 
 (enable-console-print!)
 
@@ -159,21 +163,32 @@
     (render [_]
       (html [:div (:message error)]))))
 
-(defn get-resource [update-key uri]
-  (let [ch (chan)]
-    (GET uri
-         {:handler #(go (>! ch {:data %}))
-          :error-handler #(go (>! ch {:error (str "Failure to load " (name update-key) ", reason: " (:status-text %))}))})
-    ch))
+(defn get-resource
+  ([update-key uri]
+     (get-resource update-key uri {}))
+  ([update-key uri params]
+     (let [ch (chan)]
+       (GET uri
+            {:handler #(go (>! ch {:data %}))
+             :format :raw
+             :params params
+             :error-handler #(go (>! ch {:error (str "Failure to load "
+                                                     (name update-key)
+                                                     ", reason: "
+                                                     (:status-text %))}))})
+       ch)))
 
-(defn update-resource [state update-key uri]
-  (go
-    (let [{:keys [data error]} (<! (get-resource update-key uri))]
-      (if-not error
-        (om/update! state [update-key] data)
-        (do
-          (om/update! state [update-key] nil)
-          (om/update! state [:error :message] error))))))
+(defn update-resource
+  ([state update-key uri]
+     (update-resource state update-key uri {}))
+  ([state update-key uri params]
+     (go
+       (let [{:keys [data error]} (<! (get-resource update-key uri params))]
+         (if-not error
+           (om/update! state [update-key] data)
+           (do
+             (om/update! state [update-key] nil)
+             (om/update! state [:error :message] error)))))))
 
 (defn load-google-charts []
   (let [ch (chan)
@@ -223,24 +238,25 @@
                 (match [selected-detector selected-metric]
                        [_ nil]
                        (do
-                         (update-resource state :metrics (str "/detectors/"
-                                                              (:id @selected-detector)
-                                                              "/metrics/"))
-                         (update-resource state :alerts (str "/detectors/"
-                                                             (:id @selected-detector)
-                                                             "/alerts/"
-                                                             "?start-date=" selected-start-date
-                                                             "?end-date=" selected-end-date)))
+                         (update-resource state :metrics
+                                          (str "/detectors/" (:id @selected-detector) "/metrics/"))
+                         (update-resource state
+                                          :alerts
+                                          (str "/detectors/" (:id @selected-detector) "/alerts/")
+                                          {:from selected-start-date
+                                           :to selected-end-date}))
 
                        [_ _]
                        (do
-                         (update-resource state :alerts (str "/detectors/"
-                                                             (:id @selected-detector)
-                                                             "/metrics/"
-                                                             (:id @selected-metric)
-                                                             "/alerts/"
-                                                             "?start-date=" selected-start-date
-                                                             "?end-date=" selected-end-date)))))
+                         (update-resource state
+                                          :alerts
+                                          (str "/detectors/"
+                                               (:id @selected-detector)
+                                               "/metrics/"
+                                               (:id @selected-metric)
+                                               "/alerts/")
+                                          {:from selected-start-date
+                                           :to selected-end-date}))))
               (recur))))))
 
     om/IRenderState

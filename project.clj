@@ -16,6 +16,7 @@
                  [org.clojure/core.match  "0.2.1"]
                  [clj-time "0.8.0"]
 
+                 [weasel "0.4.0-SNAPSHOT"]
                  [org.clojure/clojurescript "0.0-2311"]
                  [om "0.7.0"]
                  [sablono "0.2.21"]

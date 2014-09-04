@@ -3,6 +3,11 @@ goog.addDependency("../cljs/core.js", ['cljs.core'], ['goog.string', 'goog.objec
 goog.addDependency("../clojure/string.js", ['clojure.string'], ['goog.string', 'cljs.core', 'goog.string.StringBuffer']);
 goog.addDependency("../cljs/reader.js", ['cljs.reader'], ['goog.string', 'cljs.core', 'goog.string.StringBuffer']);
 goog.addDependency("../ajax/core.js", ['ajax.core'], ['goog.net.XhrManager', 'goog.net.XhrIo', 'goog.Uri.QueryData', 'goog.Uri', 'cljs.core', 'goog.net.EventType', 'goog.structs', 'goog.json.Serializer', 'clojure.string', 'cljs.reader', 'goog.events', 'goog.net.ErrorCode']);
+goog.addDependency("../clojure/browser/event.js", ['clojure.browser.event'], ['cljs.core', 'goog.events.EventTarget', 'goog.events.EventType', 'goog.events']);
+goog.addDependency("../clojure/browser/net.js", ['clojure.browser.net'], ['goog.net.xpc.CfgFields', 'goog.net.XhrIo', 'goog.json', 'goog.Uri', 'cljs.core', 'goog.net.EventType', 'goog.net.xpc.CrossPageChannel', 'clojure.browser.event']);
+goog.addDependency("../weasel/impls/websocket.js", ['weasel.impls.websocket'], ['cljs.core', 'clojure.browser.net', 'goog.net.WebSocket', 'clojure.browser.event']);
+goog.addDependency("../weasel/repl.js", ['weasel.repl'], ['weasel.impls.websocket', 'cljs.core', 'clojure.browser.net', 'cljs.reader', 'clojure.browser.event']);
+goog.addDependency("../clojure/browser/repl.js", ['clojure.browser.repl'], ['cljs.core', 'clojure.browser.net', 'clojure.browser.event']);
 goog.addDependency("../cljs/core/async/impl/protocols.js", ['cljs.core.async.impl.protocols'], ['cljs.core']);
 goog.addDependency("../cljs/core/async/impl/buffers.js", ['cljs.core.async.impl.buffers'], ['cljs.core', 'cljs.core.async.impl.protocols']);
 goog.addDependency("../cljs/core/async/impl/dispatch.js", ['cljs.core.async.impl.dispatch'], ['cljs.core', 'cljs.core.async.impl.buffers']);
@@ -21,4 +26,4 @@ goog.addDependency("../om/core.js", ['om.core'], ['cljs.core', 'om.dom', 'goog.u
 goog.addDependency("../cljs_time/internal/core.js", ['cljs_time.internal.core'], ['cljs.core']);
 goog.addDependency("../cljs_time/format.js", ['cljs_time.format'], ['goog.string', 'cljs.core', 'cljs_time.core', 'clojure.set', 'cljs_time.internal.core', 'goog.string.format', 'clojure.string', 'goog.date']);
 goog.addDependency("../cljs/core/match.js", ['cljs.core.match'], ['cljs.core']);
-goog.addDependency("../cljs/medusa/core.js", ['cljs.medusa.core'], ['ajax.core', 'cljs.core', 'cljs.core.async', 'cljs_time.core', 'sablono.core', 'om.core', 'cljs_time.format', 'cljs.reader', 'cljs.core.match']);
+goog.addDependency("../cljs/medusa/core.js", ['cljs.medusa.core'], ['ajax.core', 'weasel.repl', 'clojure.browser.repl', 'cljs.core', 'cljs.core.async', 'cljs_time.core', 'sablono.core', 'om.core', 'cljs_time.format', 'cljs.reader', 'cljs.core.match']);
