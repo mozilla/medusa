@@ -13,11 +13,11 @@
                    [cljs.core.match.macros :refer [match]]))
 
 (ws-repl/connect "ws://localhost:9001" :verbose true)
-
 (enable-console-print!)
 
-(let [date-formatter (timef/formatter "yyyy-MM-dd")
-      end-date (time/today-at 12 00)
+(def date-formatter (timef/formatter "yyyy-MM-dd"))
+
+(let [end-date (time/today-at 12 00)
       start-date (time/minus end-date (time/months 1))
       end-date (timef/unparse date-formatter end-date)
       start-date (timef/unparse date-formatter start-date)]
@@ -55,6 +55,10 @@
             name->metric (zipmap (map :name metrics) metrics)
             element (om/get-node owner "metrics-selector")
             jq-element (js/$ element)]
+
+        ; needed to clean current selection
+        (.select2 jq-element #js {:placeholder ""
+                                  :allowClear true})
         (.off jq-element)
         (.on jq-element "change" (fn [e]
                                    (let [selected-metric (get name->metric (.-val e))]
@@ -62,6 +66,7 @@
                                        (>! event-channel [:metric-selected selected-metric])))))))
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
+      (println "selecting")
       (html
        [:div.form-group
         [:label {:for "metrics-selector"} "Metric:"]
@@ -75,10 +80,17 @@
   (reify
     om/IDidMount
     (did-mount [_]
-      (let [start-element (js/$ (om/get-node owner "start-date"))
+      (let [event-channel (om/get-state owner :event-channel)
+            start-element (js/$ (om/get-node owner "start-date"))
             end-element (js/$ (om/get-node owner "end-date"))
             start-datepicker (.datepicker start-element #js {:format "yyyy-mm-dd"})
-            end-datepicker (.datepicker end-element #js {:format "yyyy-mm-dd"})]
+            end-datepicker (.datepicker end-element #js {:format "yyyy-mm-dd"})
+            format-date #(timef/unparse date-formatter (time/plus (time/date-time (.-date %))
+                                                                  (time/days 1)))]
+        (.on start-datepicker "changeDate" (fn [e]
+                                             (go (>! event-channel [:from-selected (format-date e)]))))
+        (.on end-datepicker "changeDate" (fn [e]
+                                           (go (>! event-channel [:to-selected (format-date e)]))))
         start-datepicker))
 
     om/IRenderState
@@ -221,21 +233,39 @@
               (condp = topic
                 :detector-selected
                 (do
-                  (om/update! state [:selected-detector] message)
-                  (om/update! state [:error :message] "")
-                  (om/update! state [:selected-metric] nil)
-                  (om/update! state [:alerts] nil))
+                  (println "detector-selected")
+                  (om/transact! state (fn [state]
+                                        (let [state (assoc state
+                                                      :selected-detector message
+                                                      :selected-metric nil
+                                                      :alerts nil)
+                                              state (assoc-in state [:error :message] "")]
+                                          state))))
 
                 :metric-selected
                 (let [detector (:selected-detector @state)]
-                  (om/update! state [:selected-metric] message)
-                  (om/update! state [:error :message] "")))
-                                        ;retrieve resources
+                  (om/transact! state (fn [state]
+                                        (let [state (assoc state :selected-metric message)
+                                              state (assoc-in state [:error :message] "")]
+                                          state))))
+
+                :from-selected
+                (do
+                  (om/update! state [:selected-date-range 0] message))
+
+                :to-selected
+                (do
+                  (om/update! state [:selected-date-range 1] message)))
+
+              ;retrieve resources
               (let [selected-detector (:selected-detector @state)
                     selected-metric (:selected-metric @state)
                     selected-start-date (get-in @state [:selected-date-range 0])
                     selected-end-date (get-in @state [:selected-date-range 1])]
                 (match [selected-detector selected-metric]
+                       [nil nil]
+                       ()
+
                        [_ nil]
                        (do
                          (update-resource state :metrics
