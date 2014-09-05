@@ -21,7 +21,7 @@
       start-date (time/minus end-date (time/months 1))
       end-date (timef/unparse date-formatter end-date)
       start-date (timef/unparse date-formatter start-date)]
-  (def app-state (atom {:login {:status "Login", :user nil}
+  (def app-state (atom {:login {:user nil}
                         :detectors []
                         :metrics []
                         :alerts []
@@ -38,7 +38,7 @@
              (for [detector detectors]
                [:a.list-group-item
                 {:class (when (= selected-detector detector) "active")
-                 :on-click #(go (>! event-channel [:detector-selected detector]))}
+                 :on-click #(put! event-channel [:detector-selected detector])}
                 (:name detector)])]))))
 
 (defn metrics-list [{:keys [metrics selected-metric]} owner]
@@ -63,8 +63,7 @@
         (.off jq-element)
         (.on jq-element "change" (fn [e]
                                    (let [selected-metric (get name->metric (.-val e))]
-                                     (go
-                                       (>! event-channel [:metric-selected selected-metric])))))))
+                                     (put! event-channel [:metric-selected selected-metric]))))))
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
       (html
@@ -89,10 +88,10 @@
                                                                   (time/days 1)))]
         (.on start-datepicker "changeDate" (fn [e]
                                              (.datepicker start-element "hide")
-                                             (go (>! event-channel [:from-selected (format-date e)]))))
+                                             (put! event-channel [:from-selected (format-date e)])))
         (.on end-datepicker "changeDate" (fn [e]
                                            (.datepicker end-element "hide")
-                                           (go (>! event-channel [:to-selected (format-date e)]))))
+                                           (put! event-channel [:to-selected (format-date e)])))
         start-datepicker))
 
     om/IRenderState
@@ -183,13 +182,14 @@
   ([update-key uri params]
      (let [ch (chan)]
        (GET uri
-            {:handler #(go (>! ch {:data %}))
+            {:handler #(do (put! ch {:data %}) (close! ch))
              :format :raw
              :params params
-             :error-handler #(go (>! ch {:error (str "Failure to load "
-                                                     (name update-key)
-                                                     ", reason: "
-                                                     (:status-text %))}))})
+             :error-handler #(do (put! ch {:error (str "Failure to load "
+                                                       (name update-key)
+                                                       ", reason: "
+                                                       (:status-text %))})
+                                 (close! ch))})
        ch)))
 
 (defn update-resource
@@ -207,36 +207,44 @@
 (defn load-google-charts []
   (let [ch (chan)
         cb (fn []
-             (go
-               (>! ch "LOADED")
-               (close! ch)))]
+             (put! ch "LOADED")
+             (close! ch))]
     (.load js/google "visualization" "1" (clj->js {:packages ["corechart"]}))
     (.setOnLoadCallback js/google cb)
     ch))
 
-(defn persona [{:keys [status user] :as state} owner]
+(defn persona [{:keys [user] :as state} owner]
   (reify
     om/IWillMount
     (will-mount [_]
-      (let [login (fn [assertion]
-                    (GET "/login"
-                         {:handler #(println "handler")
-                          :format :raw
-                          :params {:assertion assertion}
-                          :error-handler #(println "error-handler")}))]
+      (let [event-channel (om/get-state owner :event-channel)
+            login (fn [assertion]
+                    (let [ch (chan)]
+                      (GET "/login"
+                           {
+                            :handler #(do (put! ch %) (close! ch))
+                            :format :raw
+                            :params {:assertion assertion}
+                            :error-handler #(do (put! ch {}) (close! ch))})
+                      ch))]
         (js/navigator.id.watch #js {:loggedInUser user
                                     :onlogin (fn [assertion]
-                                               (login assertion))
+                                               (go
+                                                 (let [user (<! (login assertion))
+                                                       email (:email user)]
+                                                   (put! event-channel [:login email]))))
                                     :onlogout (fn []
-                                                )})))
+                                                (put! event-channel [:logout nil]))})))
 
     om/IRenderState
     (render-state [_ _]
       (html
        [:div.text-right
         [:button.btn.btn-default {:on-click (fn [_]
-                                              (js/navigator.id.request))}
-         status]]))))
+                                              (if-not user
+                                                (js/navigator.id.request)
+                                                (js/navigator.id.logout)))}
+         (if user "Logout" "Login")]]))))
 
 (defn layout [state owner]
   (reify
@@ -256,6 +264,16 @@
                   [topic message] (<! event-channel)]
               ;process event
               (condp = topic
+                :login
+                (do
+                  (println "login")
+                  (om/update! state :login {:user message}))
+
+                :logout
+                (do
+                  (println "logout")
+                 (om/update! state :login {:user nil}))
+
                 :detector-selected
                 (do
                   (om/transact! state (fn [state]

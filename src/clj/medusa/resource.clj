@@ -116,16 +116,21 @@
   :handle-ok :alert)
 
 (defresource login [{:keys [assertion]}]
-  :available-media-types ["application/json" "application/edn"]
+  :available-media-types ["application/edn" "application/json"]
   :allowed-methods [:get]
   :authorized? (fn [ctx]
                  (let [options {:query-params {:assertion assertion
+                                               ;TODO: change audience to the real website
                                                :audience "http://localhost:8080"}}
                        {:keys [status body error]} @(http/post "https://verifier.login.persona.org/verify" options)]
                    (when (= status 200)
-                     (let [{:keys [status] :as response} (json/parse-string body true)]
+                     (let [{:keys [status email] :as response} (json/parse-string body true)]
                        (when (= status "okay")
-                         (println "VERIFIED, yay")
-                         )))
-                   ))
-  :handle-ok (fn [ctx] {:foo "bar"}))
+                         ; create the user if doesn't exist in the db
+                         (let [user (if-let [user (db/get-user email)]
+                                      user
+                                      (do
+                                        (db/add-user email)
+                                        (db/get-user email)))]
+                           {:user user}))))))
+  :handle-ok :user)

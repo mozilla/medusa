@@ -12,20 +12,27 @@
 
 (def time-formatter (timef/formatter "yyyy-MM-dd"))
 
-(declare user alert metric detector)
+(declare user alert metric detector user_metric user_detector)
 
 (defentity user
-  (entity-fields :email))
+  (many-to-many metric :user_metric)
+  (many-to-many detector :user_detector))
+
+(defentity user_metric)
+
+(defentity user_detector)
 
 (defentity alert
   (belongs-to metric))
 
 (defentity metric
   (has-many alert)
-  (belongs-to detector))
+  (belongs-to detector)
+  (many-to-many user :user_metric))
 
 (defentity detector
-  (has-many metric))
+  (has-many metric)
+  (many-to-many user :user_detector))
 
 (defn initialize-db []
   (def db-spec {:classname "org.sqlite.JDBC"
@@ -39,6 +46,20 @@
    "CREATE TABLE IF NOT EXISTS user
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        email TEXT NOT NULL UNIQUE)"
+
+   "CREATE TABLE IF NOT EXISTS user_metric
+      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL,
+       metric_id INTEGER NOT NULL,
+       FOREIGN KEY(user_id) REFERENCES user(id)
+       FOREIGN KEY(metric_id) REFERENCES metric(id))"
+
+   "CREATE TABLE IF NOT EXISTS user_detector
+      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+       user_id INTEGER NOT NULL,
+       detector_id INTEGER NOT NULL,
+       FOREIGN KEY(user_id) REFERENCES user(id)
+       FOREIGN KEY(detector_id) REFERENCES detector(id))"
 
    "CREATE TABLE IF NOT EXISTS detector
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,7 +107,13 @@
                            :metric_id 2}))
     (insert alert (values {:date "2014-07-05",
                            :description "{}",
-                           :metric_id 2}))))
+                           :metric_id 2})))
+  (when (empty? (select user_metric))
+    (insert user_metric (values {:user_id 1
+                                 :metric_id 1})))
+  (when (empty? (select user_detector))
+    (insert user_detector (values {:user_id 1
+                                   :detector_id 1}))))
 
 (defn load []
   (info "Loading database...")
@@ -126,6 +153,20 @@
                        :metric_id metric_id}))
       (first)
       (second)))
+
+(defn add-user [email]
+  (-> (insert user (values {:email email}))))
+
+(defn get-user [email]
+  (first (select user
+                 (fields :id :email)
+                 (where (= :email email))
+                 (with metric
+                       (fields [:id :metric_id])
+                       (with detector
+                             (fields [:id :detector_id])))
+                 (with detector
+                       (fields [:id :detector_id])))))
 
 (defn get-detectors
   ([]
