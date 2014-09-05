@@ -48,7 +48,8 @@
       (let [element (om/get-node owner "metrics-selector")
             jq-element (js/$ element)]
         (.select2 jq-element #js {:placeholder ""
-                                  :allowClear true})))
+                                  :allowClear true
+                                  :dropdownAutoWidth true})))
 
     om/IDidUpdate
     (did-update [_ _ _]
@@ -57,9 +58,10 @@
             element (om/get-node owner "metrics-selector")
             jq-element (js/$ element)]
 
-        ; needed to clean current selection
+        ;; needed to clean current selection
         (.select2 jq-element #js {:placeholder ""
-                                  :allowClear true})
+                                  :allowClear true
+                                  :dropdownAutoWidth true})
         (.off jq-element)
         (.on jq-element "change" (fn [e]
                                    (let [selected-metric (get name->metric (.-val e))]
@@ -170,6 +172,23 @@
       (html [:div.list-group
              (om/build-all alert alerts)]))))
 
+(defn description [{:keys [alerts selected-detector selected-metric login]}]
+  (reify
+    om/IRenderState
+    (render-state [_ {:keys [event-channel]}]
+      (html [:div
+             (when (and selected-detector (:user login))
+               [:form
+                [:div.form-group.text-center
+                 [:label
+                  (html/check-box {:on-click (fn [] (put! event-channel [:subscribe]))} "subscription-status")
+                  (str " Keep me posted for "
+                       (when selected-metric
+                         (str (:name selected-metric) " in "))
+                       (when selected-detector
+                         (str (:name selected-detector))))]]])
+             (om/build alerts-list {:alerts alerts})]))))
+
 (defn error-notification [{:keys [error]}]
   (reify
     om/IRender
@@ -262,17 +281,19 @@
           (loop []
             (let [event-channel (om/get-state owner :event-channel)
                   [topic message] (<! event-channel)]
-              ;process event
+                                        ;process event
               (condp = topic
+                :subscribe
+                (do
+                  (println "subscribe"))
+
                 :login
                 (do
-                  (println "login")
                   (om/update! state :login {:user message}))
 
                 :logout
                 (do
-                  (println "logout")
-                 (om/update! state :login {:user nil}))
+                  (om/update! state :login {:user nil}))
 
                 :detector-selected
                 (do
@@ -299,7 +320,7 @@
                 (do
                   (om/update! state [:selected-date-range 1] message)))
 
-              ;retrieve resources
+              ;; retrieve resources
               (let [selected-detector (:selected-detector @state)
                     selected-metric (:selected-metric @state)
                     selected-start-date (get-in @state [:selected-date-range 0])
@@ -350,6 +371,8 @@
                          {:init-state {:event-channel event-channel}})
                (om/build error-notification (select-keys state [:error]))]
               [:div.col-md-9
-               (om/build alerts-list (select-keys state [:alerts]))]]]))))
+               (om/build description
+                         (select-keys state [:selected-detector :selected-metric :alerts :login])
+                         {:init-state {:event-channel event-channel}})]]]))))
 
 (om/root layout app-state {:target (.getElementById js/document "app")})

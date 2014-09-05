@@ -7,7 +7,10 @@
             [clj.medusa.config :as config]
             [clj.medusa.db :as db]
             [clj.medusa.resource :as resource]
-            [ring.middleware.reload :as reload]))
+            [ring.middleware.reload :as reload]
+            [cemerick.friend :as friend]
+            (cemerick.friend [workflows :as workflows]
+                             [credentials :as creds])))
 
 (defroutes app
   (ANY "/login" [& params]
