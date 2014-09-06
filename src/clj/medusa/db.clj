@@ -84,7 +84,7 @@
 
 (defn populate_db_test []
   (when (empty? (select user))
-    (insert user (values {:email "ra.vitillo@gmail.com"})))
+    (insert user (values {:email "rvitillo@mozilla.com"})))
   (when (empty? (select detector))
     (insert detector (values [{:name "Histogram Regression Detector"
                                :date "2014-05-01"
@@ -157,7 +157,21 @@
 (defn add-user [email]
   (-> (insert user (values {:email email}))))
 
+(defn add-subscription [{:keys [user-id detector-id metric-id]}]
+  (if metric-id
+    (insert user_metric
+            (values {:user_id user-id
+                     :metric_id metric-id}))
+    (insert user_detector
+            (values {:user_id user-id
+                     :detector_id detector-id}))))
+
 (defn get-user [email]
+  (first (select user
+                 (fields :id :email)
+                 (where (= :email email)))))
+
+(defn get-subscriptions [email]
   (first (select user
                  (fields :id :email)
                  (where (= :email email))

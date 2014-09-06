@@ -129,3 +129,13 @@
   :allowed-methods [:get]
   :authorized? persona/authorized?
   :handle-ok nil)
+
+(defresource subscriptions [query]
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:get :post]
+  :authorized? persona/authorized?
+  :post! (fn [ctx]
+           (db/add-subscription (assoc query :user-id (:id (persona/user ctx)))))
+  :handle-ok (fn [ctx]
+               (let [user (persona/user ctx)]
+                 (db/get-subscriptions (:email user)))))

@@ -25,6 +25,7 @@
                         :detectors []
                         :metrics []
                         :alerts []
+                        :subscriptions []
                         :selected-detector nil
                         :selected-metric nil
                         :selected-date-range [start-date end-date]
@@ -173,7 +174,7 @@
       (html [:div.list-group
              (om/build-all alert alerts)]))))
 
-(defn description [{:keys [alerts selected-detector selected-metric login]}]
+(defn description [{:keys [alerts selected-detector selected-metric login]} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
@@ -182,8 +183,13 @@
                [:form
                 [:div.form-group.text-center
                  [:label
-                  (html/check-box {:on-click (fn [] (put! event-channel [:subscribe]))} "subscription-status")
-                  (str " Keep me posted for "
+                  (html/check-box {:ref "check-box"
+                                   :on-click (fn []
+                                               (let [el (om/get-node owner "check-box")
+                                                     checked (.-checked el)]
+                                                (put! event-channel [(if checked :subscribe :unsubscribe)])))}
+                                  "subscription-status")
+                  (str " Keep me posted about "
                        (when selected-metric
                          (str (:name selected-metric) " in "))
                        (when selected-detector
@@ -231,6 +237,12 @@
              (close! ch))]
     (.load js/google "visualization" "1" (clj->js {:packages ["corechart"]}))
     (.setOnLoadCallback js/google cb)
+    ch))
+
+(defn load-subscriptions []
+  (let [ch (chan)]
+    (GET "/subscriptions" {:handler #(do (put! ch %) (close! ch))
+                           :error-handler #(do (put! ch {}) (close! ch))})
     ch))
 
 (defn persona [{:keys [user] :as state} owner]
@@ -290,11 +302,24 @@
               (condp = topic
                 :subscribe
                 (do
-                  (println "subscribe"))
+                  (let [selected-detector-id (:id @(:selected-detector @state))
+                        selected-metric-id (when-let [metric (:selected-metric @state)] (:id @metric))]
+                    (POST "/subscriptions"
+                          {:handler #(println %)
+                           :format :raw
+                           :params {:detector-id selected-detector-id
+                                    :metric-id selected-metric-id}})))
+
+                :unsubscribe
+                (do
+                  (println "unsubscribe"))
 
                 :login
-                (do
-                  (om/update! state :login {:user message}))
+                (let [subscriptions (<! (load-subscriptions))]
+                  (om/transact! state (fn [state]
+                                        (-> state
+                                            (assoc :subscriptions subscriptions)
+                                            (assoc-in [:login :user] message)))))
 
                 :logout
                 (do
@@ -303,19 +328,16 @@
                 :detector-selected
                 (do
                   (om/transact! state (fn [state]
-                                        (let [state (assoc state
-                                                      :selected-detector message
-                                                      :selected-metric nil
-                                                      :alerts nil)
-                                              state (assoc-in state [:error :message] "")]
-                                          state))))
+                                        (-> state
+                                            (assoc :selected-detector message, :selected-metric nil, :alerts nil)
+                                            (assoc-in [:error :message] "")))))
 
                 :metric-selected
                 (let [detector (:selected-detector @state)]
                   (om/transact! state (fn [state]
-                                        (let [state (assoc state :selected-metric message)
-                                              state (assoc-in state [:error :message] "")]
-                                          state))))
+                                        (-> state
+                                            (assoc :selected-metric message)
+                                            (assoc-in [:error :message] "")))))
 
                 :from-selected
                 (do

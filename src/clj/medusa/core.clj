@@ -18,6 +18,8 @@
        (resource/login))
   (ANY "/logout" []
        (friend/logout (resource/logout)))
+  (ANY "/subscriptions" [& params]
+       (resource/subscriptions params))
   (ANY "/detectors/" [& params]
        (resource/detectors-resource params))
   (ANY "/detectors/:id" [& params]

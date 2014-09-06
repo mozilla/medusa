@@ -32,6 +32,12 @@
         authorized (friend/authorized? #{::user} identity)]
     {:identity identity}))
 
+(defn user [ctx]
+  (let [identity (friend/identity (:request ctx))
+        current (:current identity)
+        user (-> identity :authentications (get current) ::user)]
+    user))
+
 (defn workflow [uri request]
   (if (and (= (:uri request) uri)
            (= (:request-method request) :get))
