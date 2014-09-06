@@ -165,6 +165,7 @@
       "graph" (alert-graph {:date date, :description description} owner)
       nil)))
 
+
 (defn alerts-list [{:keys [alerts]}]
   (reify
     om/IRender
@@ -239,13 +240,15 @@
       (let [event-channel (om/get-state owner :event-channel)
             login (fn [assertion]
                     (let [ch (chan)]
-                      (GET "/login"
-                           {
-                            :handler #(do (put! ch %) (close! ch))
-                            :format :raw
-                            :params {:assertion assertion}
-                            :error-handler #(do (put! ch {}) (close! ch))})
-                      ch))]
+                      (GET "/login" {:handler #(do (put! ch %) (close! ch))
+                                     :format :raw
+                                     :params {:assertion assertion}
+                                     :error-handler #(do (put! ch {}) (close! ch))})
+                      ch))
+            logout (fn []
+                     (let [ch (chan)]
+                       (GET "/logout" {:finally #(do (put! ch {}) (close! ch))})
+                       ch))]
         (js/navigator.id.watch #js {:loggedInUser user
                                     :onlogin (fn [assertion]
                                                (go
@@ -253,7 +256,9 @@
                                                        email (:email user)]
                                                    (put! event-channel [:login email]))))
                                     :onlogout (fn []
-                                                (put! event-channel [:logout nil]))})))
+                                                (go
+                                                  (<! (logout))
+                                                  (put! event-channel [:logout nil])))})))
 
     om/IRenderState
     (render-state [_ _]

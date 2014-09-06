@@ -2,9 +2,11 @@
   (:require [liberator.core :refer [resource defresource by-method]]
             [cheshire.core :as json]
             [org.httpkit.client :as http]
+            [cemerick.friend :as friend]
             [clojure.edn :as edn]
             [clojure.set :as set]
-            [clj.medusa.db :as db]))
+            [clj.medusa.db :as db]
+            [clj.medusa.persona :as persona]))
 
 (defn handle-created [ks ctx]
   (let [media-type (get-in ctx [:representation :media-type])
@@ -115,22 +117,15 @@
           (get-in ctx [:alert :date]))
   :handle-ok :alert)
 
-(defresource login [{:keys [assertion]}]
+(defresource login []
   :available-media-types ["application/edn" "application/json"]
   :allowed-methods [:get]
-  :authorized? (fn [ctx]
-                 (let [options {:query-params {:assertion assertion
-                                               ;TODO: change audience to the real website
-                                               :audience "http://localhost:8080"}}
-                       {:keys [status body error]} @(http/post "https://verifier.login.persona.org/verify" options)]
-                   (when (= status 200)
-                     (let [{:keys [status email] :as response} (json/parse-string body true)]
-                       (when (= status "okay")
-                         ; create the user if doesn't exist in the db
-                         (let [user (if-let [user (db/get-user email)]
-                                      user
-                                      (do
-                                        (db/add-user email)
-                                        (db/get-user email)))]
-                           {:user user}))))))
-  :handle-ok :user)
+  :authorized? persona/authorized?
+  :handle-ok (fn [{:keys [identity]}]
+               (db/get-user (:current identity))))
+
+(defresource logout []
+  :available-media-types ["application/edn" "application/json"]
+  :allowed-methods [:get]
+  :authorized? persona/authorized?
+  :handle-ok nil)

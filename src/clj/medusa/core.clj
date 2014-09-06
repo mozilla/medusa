@@ -7,14 +7,17 @@
             [clj.medusa.config :as config]
             [clj.medusa.db :as db]
             [clj.medusa.resource :as resource]
+            [clj.medusa.persona :as persona]
             [ring.middleware.reload :as reload]
             [cemerick.friend :as friend]
             (cemerick.friend [workflows :as workflows]
                              [credentials :as creds])))
 
 (defroutes app
-  (ANY "/login" [& params]
-       (resource/login params))
+  (ANY "/login" []
+       (resource/login))
+  (ANY "/logout" []
+       (friend/logout (resource/logout)))
   (ANY "/detectors/" [& params]
        (resource/detectors-resource params))
   (ANY "/detectors/:id" [& params]
@@ -34,7 +37,9 @@
 
 (def handler
   (-> app
-      (wrap-trace :header :ui)))
+      (wrap-trace :header :ui)
+      (friend/authenticate {:credential-fn persona/credential-fn
+                            :workflows [(partial persona/workflow "/login")]})))
 
 (config/load)
 (db/load)
