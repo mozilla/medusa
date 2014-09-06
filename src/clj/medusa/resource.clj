@@ -135,7 +135,8 @@
   :allowed-methods [:get :post]
   :authorized? persona/authorized?
   :post! (fn [ctx]
-           (db/add-subscription (assoc query :user-id (:id (persona/user ctx)))))
+           (let [user (persona/user ctx)]
+             (db/edit-subscription (assoc query :user-id (:id user)))))
   :handle-ok (fn [ctx]
                (let [user (persona/user ctx)]
                  (db/get-subscriptions (:email user)))))

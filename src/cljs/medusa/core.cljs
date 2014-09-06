@@ -174,16 +174,24 @@
       (html [:div.list-group
              (om/build-all alert alerts)]))))
 
-(defn description [{:keys [alerts selected-detector selected-metric login]} owner]
+(defn description [{:keys [alerts selected-detector selected-metric login subscriptions]} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
-      (html [:div
+      (let [is-subscribed? (fn [subscriptions detector-id metric-id]
+                             (match [detector-id metric-id]
+                                    [nil nil] false
+                                    [_ nil] (some #(= detector-id (:detector_id %)) (:detector subscriptions))
+                                    [_ _] (some #(= metric-id (:metric_id %)) (:metric subscriptions))))]
+       (html [:div
              (when (and selected-detector (:user login))
                [:form
                 [:div.form-group.text-center
                  [:label
-                  (html/check-box {:ref "check-box"
+                  (html/check-box {:checked (let [detector-id (:id selected-detector)
+                                                  metric-id (:id selected-metric)]
+                                              (is-subscribed? subscriptions detector-id metric-id))
+                                   :ref "check-box"
                                    :on-click (fn []
                                                (let [el (om/get-node owner "check-box")
                                                      checked (.-checked el)]
@@ -194,7 +202,7 @@
                          (str (:name selected-metric) " in "))
                        (when selected-detector
                          (str (:name selected-detector))))]]])
-             (om/build alerts-list {:alerts alerts})]))))
+             (om/build alerts-list {:alerts alerts})])))))
 
 (defn error-notification [{:keys [error]}]
   (reify
@@ -237,12 +245,6 @@
              (close! ch))]
     (.load js/google "visualization" "1" (clj->js {:packages ["corechart"]}))
     (.setOnLoadCallback js/google cb)
-    ch))
-
-(defn load-subscriptions []
-  (let [ch (chan)]
-    (GET "/subscriptions" {:handler #(do (put! ch %) (close! ch))
-                           :error-handler #(do (put! ch {}) (close! ch))})
     ch))
 
 (defn persona [{:keys [user] :as state} owner]
@@ -290,7 +292,23 @@
 
     om/IWillMount
     (will-mount [_]
-      (let [google-load-ch (load-google-charts)]
+      (let [google-load-ch (load-google-charts)
+            load-subscriptions (fn []
+                                 (let [ch (chan)]
+                                   (GET "/subscriptions" {:handler #(do (put! ch %) (close! ch))
+                                                          :error-handler #(do (put! ch {}) (close! ch))})
+                                   ch))
+            change-subscription (fn [op]
+                                  (let [ch (chan)
+                                        selected-detector-id (:id @(:selected-detector @state))
+                                        selected-metric-id (when-let [metric (:selected-metric @state)] (:id @metric))]
+                                    (POST "/subscriptions"
+                                          {:handler #(do (put! ch {}) (close! ch))
+                                           :format :raw
+                                           :params {:op op
+                                                    :detector-id selected-detector-id
+                                                    :metric-id selected-metric-id}})
+                                    ch))]
         (go
           (<! google-load-ch)
           (update-resource state :detectors "/detectors/")
@@ -298,21 +316,17 @@
           (loop []
             (let [event-channel (om/get-state owner :event-channel)
                   [topic message] (<! event-channel)]
-                                        ;process event
+              ;;process event
               (condp = topic
                 :subscribe
                 (do
-                  (let [selected-detector-id (:id @(:selected-detector @state))
-                        selected-metric-id (when-let [metric (:selected-metric @state)] (:id @metric))]
-                    (POST "/subscriptions"
-                          {:handler #(println %)
-                           :format :raw
-                           :params {:detector-id selected-detector-id
-                                    :metric-id selected-metric-id}})))
+                  (<! (change-subscription :subscribe))
+                  (om/update! state :subscriptions (<! (load-subscriptions))))
 
                 :unsubscribe
                 (do
-                  (println "unsubscribe"))
+                  (<! (change-subscription :unsubscribe))
+                  (om/update! state :subscriptions (<! (load-subscriptions))))
 
                 :login
                 (let [subscriptions (<! (load-subscriptions))]
@@ -399,7 +413,7 @@
                (om/build error-notification (select-keys state [:error]))]
               [:div.col-md-9
                (om/build description
-                         (select-keys state [:selected-detector :selected-metric :alerts :login])
+                         (select-keys state [:selected-detector :selected-metric :alerts :login :subscriptions])
                          {:init-state {:event-channel event-channel}})]]]))))
 
 (om/root layout app-state {:target (.getElementById js/document "app")})

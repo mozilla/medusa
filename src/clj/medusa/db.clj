@@ -157,14 +157,22 @@
 (defn add-user [email]
   (-> (insert user (values {:email email}))))
 
-(defn add-subscription [{:keys [user-id detector-id metric-id]}]
-  (if metric-id
-    (insert user_metric
-            (values {:user_id user-id
-                     :metric_id metric-id}))
-    (insert user_detector
-            (values {:user_id user-id
-                     :detector_id detector-id}))))
+(defn edit-subscription [{:keys [user-id detector-id metric-id op]}]
+  (if (= op "subscribe")
+    (if metric-id
+      (insert user_metric
+              (values {:user_id user-id
+                       :metric_id metric-id}))
+      (insert user_detector
+              (values {:user_id user-id
+                       :detector_id detector-id})))
+    (if metric-id
+      (delete user_metric
+              (where {:user_id user-id
+                      :metric_id metric-id}))
+      (delete user_detector
+              (where {:user_id user-id
+                      :detector_id detector-id})))))
 
 (defn get-user [email]
   (first (select user
