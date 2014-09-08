@@ -22,7 +22,8 @@
                  [om "0.7.0"]
                  [sablono "0.2.21"]
                  [cljs-ajax  "0.2.6"]
-                 [com.andrewmcveigh/cljs-time "0.1.6"]]
+                 [com.andrewmcveigh/cljs-time "0.1.6"]
+                 [secretary "1.2.1"]]
 
   :plugins  [[lein-cljsbuild  "1.0.4-SNAPSHOT"]
              [com.cemerick/austin  "0.1.4"]]

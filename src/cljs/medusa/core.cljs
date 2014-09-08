@@ -8,7 +8,8 @@
             [clojure.browser.repl :as repl]
             [cljs.core.match]
             [cljs-time.core :as time]
-            [cljs-time.format :as timef])
+            [cljs-time.format :as timef]
+            [cljs.medusa.routing :as routing])
   (:require-macros [cljs.core.async.macros :refer [go]]
                    [cljs.core.match.macros :refer [match]]))
 
@@ -38,8 +39,8 @@
       (html [:div.list-group
              (for [detector detectors]
                [:a.list-group-item
-                {:class (when (= selected-detector detector) "active")
-                 :on-click #(put! event-channel [:detector-selected detector])}
+                {:class (when (= (:id selected-detector) (:id detector)) "active")
+                 :on-click #(put! event-channel [:detector-selected @detector])}
                 (:name detector)])]))))
 
 (defn metrics-list [{:keys [metrics selected-metric]} owner]
@@ -65,7 +66,8 @@
                                   :dropdownAutoWidth true})
         (.off jq-element)
         (.on jq-element "change" (fn [e]
-                                   (let [selected-metric (get name->metric (.-val e))]
+                                   (let [selected-metric (get name->metric (.-val e))
+                                         selected-metric (when selected-metric @selected-metric)]
                                      (put! event-channel [:metric-selected selected-metric]))))))
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
@@ -76,7 +78,9 @@
                                :id "metrics-selector"}
          [:option ""]
          (for [metric (sort-by :name metrics)]
-           [:option (when (= metric selected-metric) {:selected true}) (:name metric)])]]))))
+           [:option (when (= (:id metric) (:id selected-metric))
+                      {:selected true})
+            (:name metric)])]]))))
 
 (defn date-selector [{:keys [selected-date-range]} owner]
   (reify
@@ -120,23 +124,24 @@
                   (select-keys state [:selected-date-range])
                   {:init-state {:event-channel event-channel}})]))))
 
-(defn alert-description->googleframe [date description]
-  (let [series (.-series description)
-        series-label (.-series-label description)
-        reference-series (.-reference-series description)
-        reference-series-label (.-reference-series-label description)
-        buckets (.-buckets description)]
-    (clj->js (concat [#js ["Buckets" series-label reference-series-label]]
-                     (map (fn [a b c] #js [(str a) b c]) buckets series reference-series)))))
+
 
 
 (defn alert-graph [{:keys [description date]} owner]
-  (let [draw-chart (fn []
+  (let [description->frame (fn [date description]
+                             (let [series (.-series description)
+                                   series-label (.-series-label description)
+                                   reference-series (.-reference-series description)
+                                   reference-series-label (.-reference-series-label description)
+                                   buckets (.-buckets description)]
+    (clj->js (concat [#js ["Buckets" series-label reference-series-label]]
+                     (map (fn [a b c] #js [(str a) b c]) buckets series reference-series)))))
+        draw-chart (fn []
                      (let [element (om/get-node owner "alert-description")
                            chart (js/google.visualization.LineChart. element)
-                           data (->> (alert-description->googleframe date description)
+                           data (->> (description->frame date description)
                                      (.arrayToDataTable js/google.visualization))
-                           options #js {:curveType 'function'
+                           options #js {:curveType "function"
                                         :height 500
                                         :colors #js ["red", "black"]
                                         :vAxis #js {:title (.-y_label description)}
@@ -197,11 +202,7 @@
                                                      checked (.-checked el)]
                                                 (put! event-channel [(if checked :subscribe :unsubscribe)])))}
                                   "subscription-status")
-                  (str " Keep me posted about "
-                       (when selected-metric
-                         (str (:name selected-metric) " in "))
-                       (when selected-detector
-                         (str (:name selected-detector))))]]])
+                  " Keep me posted about the current selection"]]])
              (om/build alerts-list {:alerts alerts})])))))
 
 (defn error-notification [{:keys [error]}]
@@ -308,10 +309,61 @@
                                            :params {:op op
                                                     :detector-id selected-detector-id
                                                     :metric-id selected-metric-id}})
-                                    ch))]
+                                    ch))
+            retrieve-alerts (fn []
+                              (let [selected-detector (:selected-detector @state)
+                                    selected-metric (:selected-metric @state)
+                                    selected-start-date (get-in @state [:selected-date-range 0])
+                                    selected-end-date (get-in @state [:selected-date-range 1])]
+                                (match [selected-detector selected-metric]
+                                       [nil nil]
+                                       ()
+
+                                       [_ nil]
+                                       (do
+                                         (update-resource state :metrics
+                                                          (str "/detectors/" (:id selected-detector) "/metrics/"))
+                                         (update-resource state
+                                                          :alerts
+                                                          (str "/detectors/" (:id selected-detector) "/alerts/")
+                                                          {:from selected-start-date
+                                                           :to selected-end-date}))
+
+                                       [_ _]
+                                       (do
+                                         (update-resource state
+                                                          :alerts
+                                                          (str "/detectors/"
+                                                               (:id selected-detector)
+                                                               "/metrics/"
+                                                               (:id selected-metric)
+                                                               "/alerts/")
+                                                          {:from selected-start-date
+                                                           :to selected-end-date})))))
+            route-update (fn [updated-state]
+                           (let [state (merge @state updated-state)
+                                 {:keys [selected-detector selected-metric selected-date-range]} state
+                                 [from to] selected-date-range]
+                             (if selected-metric
+                               (routing/goto :detector-id (:id selected-detector)
+                                             :metric-id (:id selected-metric)
+                                             :from from
+                                             :to to)
+                               (routing/goto :detector-id (:id selected-detector)
+                                             :from from
+                                             :to to))))
+            route-handler (fn [state event-channel]
+                            (go
+                              (loop []
+                                (let [{:keys [detector-id metric-id from to]} (<! routing/route-channel)
+                                      detector {:id detector-id}
+                                      metric (when metric-id {:id metric-id})]
+                                  (>! event-channel [:query-has-changed [detector metric from to]])
+                                  (recur)))))]
         (go
           (<! google-load-ch)
           (update-resource state :detectors "/detectors/")
+          (route-handler state (om/get-state owner :event-channel))
 
           (loop []
             (let [event-channel (om/get-state owner :event-channel)
@@ -336,61 +388,32 @@
                                             (assoc-in [:login :user] message)))))
 
                 :logout
-                (do
-                  (om/update! state :login {:user nil}))
+                (om/update! state :login {:user nil})
+
+                :query-has-changed
+                (let [[detector metric from to] message]
+                  (om/transact! state (fn [state]
+                                        (-> state
+                                            (assoc :selected-detector detector
+                                                   :selected-metric metric
+                                                   :selected-date-range [from to]
+                                                   :alerts nil)
+                                            (assoc-in [:error :message] ""))))
+                  (retrieve-alerts))
 
                 :detector-selected
-                (do
-                  (om/transact! state (fn [state]
-                                        (-> state
-                                            (assoc :selected-detector message, :selected-metric nil, :alerts nil)
-                                            (assoc-in [:error :message] "")))))
+                (route-update {:selected-detector message
+                               :selected-metric nil})
 
                 :metric-selected
-                (let [detector (:selected-detector @state)]
-                  (om/transact! state (fn [state]
-                                        (-> state
-                                            (assoc :selected-metric message)
-                                            (assoc-in [:error :message] "")))))
+                (route-update {:selected-metric message})
 
                 :from-selected
-                (do
-                  (om/update! state [:selected-date-range 0] message))
+                (route-update {:selected-date-range [message (get-in @state [:selected-date-range 1])]})
 
                 :to-selected
-                (do
-                  (om/update! state [:selected-date-range 1] message)))
+                (route-update {:selected-date-range [(get-in @state [:selected-date-range 0]) message]}))
 
-              ;; retrieve resources
-              (let [selected-detector (:selected-detector @state)
-                    selected-metric (:selected-metric @state)
-                    selected-start-date (get-in @state [:selected-date-range 0])
-                    selected-end-date (get-in @state [:selected-date-range 1])]
-                (match [selected-detector selected-metric]
-                       [nil nil]
-                       ()
-
-                       [_ nil]
-                       (do
-                         (update-resource state :metrics
-                                          (str "/detectors/" (:id @selected-detector) "/metrics/"))
-                         (update-resource state
-                                          :alerts
-                                          (str "/detectors/" (:id @selected-detector) "/alerts/")
-                                          {:from selected-start-date
-                                           :to selected-end-date}))
-
-                       [_ _]
-                       (do
-                         (update-resource state
-                                          :alerts
-                                          (str "/detectors/"
-                                               (:id @selected-detector)
-                                               "/metrics/"
-                                               (:id @selected-metric)
-                                               "/alerts/")
-                                          {:from selected-start-date
-                                           :to selected-end-date}))))
               (recur))))))
 
     om/IRenderState
