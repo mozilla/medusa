@@ -319,12 +319,14 @@
     om/IRender
     (render [_]
       (let [format-detector (fn [{:keys [detector_name metrics_filter]}]
-                              [:div {:style {:overflow "hidden"}}
+                              [:div {:style {:overflow "hidden"
+                                             :white-space "nowrap"}}
                                [:div [:small "Detector: " [:em detector_name]]]
                                (when (seq metrics_filter)
                                  [:div [:small "Filter: " [:em metrics_filter]]])])
             format-metric (fn [{:keys [metric_name detector_name]}]
-                            [:div {:style {:overflow "hidden"}}
+                            [:div {:style {:overflow "hidden"
+                                           :white-space "nowrap"}}
                              [:div [:small "Detector: " [:em detector_name]]]
                              [:div [:small "Metric: " [:em metric_name]]]])
             detector-click (fn [detector]
