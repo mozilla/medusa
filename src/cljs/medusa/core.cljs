@@ -312,6 +312,27 @@
                                                 (js/navigator.id.logout)))}
          (if user "Logout" "Login")]]))))
 
+(defn subscription-list [{{:keys [detector metric]} :subscriptions} owner]
+  (reify
+    om/IRender
+    (render [_]
+      (let [format-detector (fn [{:keys [detector_name metrics_filter]}]
+                              [:div
+                               [:div [:small "Detector: " [:em detector_name]]]
+                               (when (seq metrics_filter)
+                                 [:div [:small "Filter: " [:em metrics_filter]]])])
+            format-metric (fn [{:keys [metric_name detector_name]}]
+                            [:div
+                             [:div [:small "Detector: " [:em detector_name]]]
+                             [:div [:small "Metric: " [:em metric_name]]]])]
+       (html [:div
+             [:label "Your Subscriptions:"]
+             [:div.list-group
+              (for [d detector]
+                [:a.list-group-item (format-detector d)])
+              (for [m metric]
+                [:a.list-group-item (format-metric m)])]])))))
+
 (defn layout [state owner]
   (reify
     om/IInitState
@@ -478,6 +499,8 @@
                                              :selected-metric
                                              :selected-date-range])
                          {:init-state {:event-channel event-channel}})
+               (om/build subscription-list
+                         (select-keys state [:subscriptions]))
                (om/build error-notification (select-keys state [:error]))]
               [:div.col-md-9
                (om/build description

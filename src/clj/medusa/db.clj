@@ -24,10 +24,10 @@
   (many-to-many detector :user_detector))
 
 (defentity user_metric
-  (belongs-to user))
+  (belongs-to metric))
 
 (defentity user_detector
-  (belongs-to user))
+  (belongs-to detector))
 
 (defentity alert
   (belongs-to metric))
@@ -209,11 +209,13 @@
                  (fields :id :email)
                  (where (= :email email))
                  (with user_detector
-                       (fields :metrics_filter :detector_id))
-                 (with metric
-                       (fields [:id :metric_id])
+                       (fields :metrics_filter :detector_id)
                        (with detector
-                             (fields [:id :detector_id]))))
+                             (fields [:name :detector_name])))
+                 (with metric
+                       (fields [:id :metric_id] [:name :metric_name])
+                       (with detector
+                             (fields [:id :detector_id] [:name :detector_name]))))
       first
       (set/rename-keys {:user_detector :detector})))
 
