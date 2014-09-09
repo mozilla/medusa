@@ -312,7 +312,7 @@
                                                 (js/navigator.id.logout)))}
          (if user "Logout" "Login")]]))))
 
-(defn subscription-list [{{:keys [detector metric]} :subscriptions
+(defn subscription-list [{{:keys [detector metric] :as subscriptions} :subscriptions
                           [from to] :selected-date-range}
                          owner]
   (reify
@@ -340,13 +340,14 @@
                                            :metric-id metric_id
                                            :from from
                                            :to to)))]
-        (html [:div
-               [:label "Your Subscriptions:"]
-               [:div.list-group
-                (for [d detector]
-                  [:a.list-group-item {:on-click (partial detector-click d)} (format-detector d)])
-                (for [m metric]
-                  [:a.list-group-item {:on-click (partial metric-click m)} (format-metric m)])]])))))
+        (when (seq subscriptions)
+          (html [:div
+                 [:label "Your Subscriptions:"]
+                 [:div.list-group
+                  (for [d detector]
+                    [:a.list-group-item {:on-click (partial detector-click d)} (format-detector d)])
+                  (for [m metric]
+                    [:a.list-group-item {:on-click (partial metric-click m)} (format-metric m)])]]))))))
 
 (defn layout [state owner]
   (reify
@@ -455,7 +456,8 @@
                                             (assoc-in [:login :user] message)))))
 
                 :logout
-                (om/update! state :login {:user nil})
+                (om/transact! state (fn [state]
+                                      (assoc state :login {:user nil}, :subscriptions [])))
 
                 :query-has-changed
                 (let [[detector filter metric from to] message
