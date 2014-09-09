@@ -27,12 +27,16 @@
   (goog.events/listen h EventType/NAVIGATE #(secretary/dispatch! (.-token %)))
   (doto h (.setEnabled true)))
 
-(defn goto [& {:keys [detector-id metric-id from to] :as params}]
-  (let [uri (match [detector-id metric-id from to]
-                   [nil nil _ _] nil
-                   [_ nil _ _] (detector {:detector-id detector-id
-                                          :query-params {:from from, :to to}})
-                   [_ _ _ _] (metric {:detector-id detector-id
-                                      :metric-id metric-id
-                                      :query-params {:from from, :to to}}))]
+(defn goto [& {:keys [detector-id metrics-filter metric-id from to] :as params}]
+  (let [uri (match [detector-id metrics-filter metric-id from to]
+                   [nil nil nil _ _] nil
+                   [_ _ nil _ _] (detector {:detector-id detector-id
+                                            :query-params {:from from
+                                                           :to to
+                                                           :metrics-filter metrics-filter}})
+                   [_ _ _ _ _] (metric {:detector-id detector-id
+                                        :metric-id metric-id
+                                        :query-params {:from from
+                                                       :to to
+                                                       :metrics-filter metrics-filter}}))]
     (set! js/location.hash uri)))

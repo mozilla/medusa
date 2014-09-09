@@ -29,6 +29,7 @@
                         :subscriptions []
                         :selected-detector nil
                         :selected-metric nil
+                        :selected-filter nil
                         :selected-date-range [start-date end-date]
                         :error {}})))
 
@@ -43,7 +44,7 @@
                  :on-click #(put! event-channel [:detector-selected @detector])}
                 (:name detector)])]))))
 
-(defn metrics-list [{:keys [metrics selected-metric]} owner]
+(defn metrics-list [{:keys [selected-filter metrics selected-metric]} owner]
   (reify
     om/IDidMount
     (did-mount [_]
@@ -73,11 +74,13 @@
     (render-state [_ {:keys [event-channel]}]
       (html
        [:div.form-group
-        [:label {:for "metrics-selector"} "Metric:"]
+        [:label {:for "metrics-selector"} "Select Metric:"]
         [:select.form-control {:ref "metrics-selector"
                                :id "metrics-selector"}
          [:option ""]
-         (for [metric (sort-by :name metrics)]
+         (for [metric (->> metrics
+                           (filter #(re-find (re-pattern (or selected-filter ".*")) (:name %)))
+                           (sort-by :name))]
            [:option (when (= (:id metric) (:id selected-metric))
                       {:selected true})
             (:name metric)])]]))))
@@ -111,14 +114,34 @@
         [:label {:for "end-date"} "To: "]
         (html/text-field {:ref "end-date", :class "form-control"} "end-date" (get selected-date-range 1))]))))
 
-(defn query-controls [{:keys [metrics selected-metric selected-date-range] :as state} owner]
+(defn metrics-filter [{:keys [metrics selected-filter]} owner]
+  (reify
+    om/IRenderState
+    (render-state [_ {:keys [event-channel]}]
+      (let [handler (fn []
+                      (let [el (om/get-node owner "metrics-filter")
+                            value (.-value el)]
+                        (put! event-channel [:filter-selected value])))
+            on-keypress (fn []
+                          (println "keypress"))]
+        (html [:div.form-group
+               [:label {:for "metrics-filter"} "Filter Metrics By: "]
+               (html/text-field {:ref "metrics-filter"
+                                 :class "form-control"
+                                 :on-change handler}
+                                "metrics-filter" selected-filter)])))))
+
+(defn query-controls [{:keys [selected-filter metrics selected-metric selected-date-range] :as state} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
       (html
        [:form
+        (om/build metrics-filter
+                  (select-keys state [:selected-filter :metrics])
+                  {:init-state {:event-channel event-channel}})
         (om/build metrics-list
-                  (select-keys state [:metrics :selected-metric])
+                  (select-keys state [:selected-filter :metrics :selected-metric])
                   {:init-state {:event-channel event-channel}})
         (om/build date-selector
                   (select-keys state [:selected-date-range])
@@ -171,15 +194,17 @@
       "graph" (alert-graph {:date date, :description description} owner)
       nil)))
 
-
-(defn alerts-list [{:keys [alerts]}]
+(defn alerts-list [{:keys [alerts selected-filter]}]
   (reify
     om/IRender
     (render [_]
       (html [:div.list-group
-             (om/build-all alert alerts)]))))
+             (om/build-all alert
+                           (filter #(re-find (re-pattern (or selected-filter ".*"))
+                                             (:metric_name %))
+                                   alerts))]))))
 
-(defn description [{:keys [alerts selected-detector selected-metric login subscriptions]} owner]
+(defn description [{:keys [alerts selected-detector selected-filter selected-metric login subscriptions]} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
@@ -203,7 +228,8 @@
                                                 (put! event-channel [(if checked :subscribe :unsubscribe)])))}
                                   "subscription-status")
                   " Keep me posted about the current selection"]]])
-             (om/build alerts-list {:alerts alerts})])))))
+             (om/build alerts-list {:alerts alerts
+                                    :selected-filter selected-filter})])))))
 
 (defn error-notification [{:keys [error]}]
   (reify
@@ -342,23 +368,25 @@
                                                            :to selected-end-date})))))
             route-update (fn [updated-state]
                            (let [state (merge @state updated-state)
-                                 {:keys [selected-detector selected-metric selected-date-range]} state
+                                 {:keys [selected-detector selected-filter selected-metric selected-date-range]} state
                                  [from to] selected-date-range]
                              (if selected-metric
                                (routing/goto :detector-id (:id selected-detector)
+                                             :metrics-filter selected-filter
                                              :metric-id (:id selected-metric)
                                              :from from
                                              :to to)
                                (routing/goto :detector-id (:id selected-detector)
+                                             :metrics-filter selected-filter
                                              :from from
                                              :to to))))
             route-handler (fn [state event-channel]
                             (go
                               (loop []
-                                (let [{:keys [detector-id metric-id from to]} (<! routing/route-channel)
+                                (let [{:keys [detector-id metrics-filter metric-id from to] :as ev} (<! routing/route-channel)
                                       detector {:id detector-id}
                                       metric (when metric-id {:id metric-id})]
-                                  (>! event-channel [:query-has-changed [detector metric from to]])
+                                  (>! event-channel [:query-has-changed [detector metrics-filter metric from to]])
                                   (recur)))))]
         (go
           (<! google-load-ch)
@@ -391,15 +419,26 @@
                 (om/update! state :login {:user nil})
 
                 :query-has-changed
-                (let [[detector metric from to] message]
+                (let [[detector filter metric from to] message
+                      extract-query #(select-keys @state [:selected-detector
+                                                          :selected-metric
+                                                          :selected-date-range
+                                                          :alerts])
+                      pre-query (extract-query)]
                   (om/transact! state (fn [state]
                                         (-> state
                                             (assoc :selected-detector detector
                                                    :selected-metric metric
+                                                   :selected-filter filter
                                                    :selected-date-range [from to]
                                                    :alerts nil)
                                             (assoc-in [:error :message] ""))))
-                  (retrieve-alerts))
+                  ;; don't refetch data from the server when only the filter
+                  ;; has changed since we perform client-side filtering
+                  (when (not= pre-query (extract-query)) (retrieve-alerts)))
+
+                :filter-selected
+                (route-update {:selected-filter message})
 
                 :detector-selected
                 (route-update {:selected-detector message
@@ -431,12 +470,20 @@
                          (select-keys state [:detectors :selected-detector])
                          {:init-state {:event-channel event-channel}})
                (om/build query-controls
-                         (select-keys state[:metrics :selected-metric :selected-date-range])
+                         (select-keys state [:selected-filter
+                                             :metrics
+                                             :selected-metric
+                                             :selected-date-range])
                          {:init-state {:event-channel event-channel}})
                (om/build error-notification (select-keys state [:error]))]
               [:div.col-md-9
                (om/build description
-                         (select-keys state [:selected-detector :selected-metric :alerts :login :subscriptions])
+                         (select-keys state [:selected-detector
+                                             :selected-filter
+                                             :selected-metric
+                                             :alerts
+                                             :login
+                                             :subscriptions])
                          {:init-state {:event-channel event-channel}})]]]))))
 
 (om/root layout app-state {:target (.getElementById js/document "app")})

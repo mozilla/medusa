@@ -223,7 +223,7 @@
                                 (like :id id)))
                     (order :date :DESC)
                     (with metric
-                          (fields [:id :metric_id])
+                          (fields [:id :metric_id] [:name :metric_name])
                           (where (like :metric_id metric_id))
                           (with detector
                                 (fields [:id :detector_id])
