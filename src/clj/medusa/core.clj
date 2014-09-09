@@ -43,7 +43,7 @@
       (friend/authenticate {:credential-fn persona/credential-fn
                             :workflows [(partial persona/workflow "/login")]})))
 
-(config/load)
-(db/load)
+(config/initialize)
+(db/initialize)
 
 (http/run-server (reload/wrap-reload (handler/site #'handler)) {:port (:port @config/state)})

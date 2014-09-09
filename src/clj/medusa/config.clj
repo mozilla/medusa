@@ -7,7 +7,7 @@
 
 (def state (atom {}))
 
-(defn load []
+(defn initialize []
   (info "Loading configuration...")
   (with-open [rdr (java.io.PushbackReader. (io/reader "resources/config.edn"))]
 ,   (swap! state (fn [c] (edn/read rdr)))))

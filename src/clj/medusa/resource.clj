@@ -9,12 +9,9 @@
             [clj.medusa.persona :as persona]))
 
 (defn handle-created [ks ctx]
-  (let [media-type (get-in ctx [:representation :media-type])
-        id (get-in ctx ks)
+  (let [id (get-in ctx ks)
         data {:id id}]
-    (condp = media-type
-      "application/json" (json/generate-string data)
-      "application/edn" (pr-str data))))
+    data))
 
 (defn parse [content-type data]
   (condp = content-type
@@ -135,8 +132,9 @@
   :allowed-methods [:get :post]
   :authorized? persona/authorized?
   :post! (fn [ctx]
-           (let [user (persona/user ctx)]
-             (db/edit-subscription (assoc query :user-id (:id user)))))
+           (let [user (persona/user ctx)
+                 body (get-body ctx)]
+             (db/edit-subscription (assoc body :user-id (:id user)))))
   :handle-ok (fn [ctx]
                (let [user (persona/user ctx)]
                  (db/get-subscriptions (:email user)))))

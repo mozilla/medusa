@@ -121,9 +121,7 @@
       (let [handler (fn []
                       (let [el (om/get-node owner "metrics-filter")
                             value (.-value el)]
-                        (put! event-channel [:filter-selected value])))
-            on-keypress (fn []
-                          (println "keypress"))]
+                        (put! event-channel [:filter-selected value])))]
         (html [:div.form-group
                [:label {:for "metrics-filter"} "Filter Metrics By: "]
                (html/text-field {:ref "metrics-filter"
@@ -208,28 +206,31 @@
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
-      (let [is-subscribed? (fn [subscriptions detector-id metric-id]
-                             (match [detector-id metric-id]
-                                    [nil nil] false
-                                    [_ nil] (some #(= detector-id (:detector_id %)) (:detector subscriptions))
-                                    [_ _] (some #(= metric-id (:metric_id %)) (:metric subscriptions))))]
-       (html [:div
-             (when (and selected-detector (:user login))
-               [:form
-                [:div.form-group.text-center
-                 [:label
-                  (html/check-box {:checked (let [detector-id (:id selected-detector)
-                                                  metric-id (:id selected-metric)]
-                                              (is-subscribed? subscriptions detector-id metric-id))
-                                   :ref "check-box"
-                                   :on-click (fn []
-                                               (let [el (om/get-node owner "check-box")
-                                                     checked (.-checked el)]
-                                                (put! event-channel [(if checked :subscribe :unsubscribe)])))}
-                                  "subscription-status")
-                  " Keep me posted about the current selection"]]])
-             (om/build alerts-list {:alerts alerts
-                                    :metrics-filter metrics-filter})])))))
+      (let [is-subscribed? (fn []
+                             (let [detector-id (:id selected-detector)
+                                   metric-id (:id selected-metric)]
+                               (= true
+                                  (match [detector-id metric-id]
+                                         [nil nil] false
+                                         [_ nil] (some #(and (= detector-id (:detector_id %))
+                                                             (= metrics-filter (:metrics_filter %)))
+                                                       (:detector subscriptions))
+                                         [_ _] (some #(= metric-id (:metric_id %)) (:metric subscriptions))))))]
+        (html [:div
+               (when (and selected-detector (:user login))
+                 [:form
+                  [:div.form-group.text-center
+                   [:label
+                    (html/check-box {:checked (is-subscribed?)
+                                     :ref "check-box"
+                                     :on-click (fn []
+                                                 (let [el (om/get-node owner "check-box")
+                                                       checked (.-checked el)]
+                                                   (put! event-channel [(if checked :subscribe :unsubscribe)])))}
+                                    "subscription-status")
+                    " Keep me posted about the current selection"]]])
+               (om/build alerts-list {:alerts alerts
+                                      :metrics-filter metrics-filter})])))))
 
 (defn error-notification [{:keys [error]}]
   (reify
@@ -327,14 +328,16 @@
                                    ch))
             change-subscription (fn [op]
                                   (let [ch (chan)
-                                        selected-detector-id (:id @(:selected-detector @state))
-                                        selected-metric-id (when-let [metric (:selected-metric @state)] (:id @metric))]
+                                        selected-detector-id (get-in @state [:selected-detector :id])
+                                        selected-metric-id (get-in @state [:selected-metric :id])
+                                        metrics-filter (:metrics-filter @state)]
                                     (POST "/subscriptions"
                                           {:handler #(do (put! ch {}) (close! ch))
-                                           :format :raw
+                                           :format :json
                                            :params {:op op
                                                     :detector-id selected-detector-id
-                                                    :metric-id selected-metric-id}})
+                                                    :metric-id selected-metric-id
+                                                    :metrics-filter metrics-filter}})
                                     ch))
             retrieve-alerts (fn []
                               (let [selected-detector (:selected-detector @state)

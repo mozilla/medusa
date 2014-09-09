@@ -14,24 +14,33 @@
 
 (declare user alert metric detector user_metric user_detector)
 
+;; Korma doesn't support attributes over many-to-many relations so I had
+;; hack around it: http://comments.gmane.org/gmane.comp.java.clojure.sqlkorma/7
+
 (defentity user
+  (has-many user_metric)
+  (has-many user_detector)
   (many-to-many metric :user_metric)
   (many-to-many detector :user_detector))
 
-(defentity user_metric)
+(defentity user_metric
+  (belongs-to user))
 
-(defentity user_detector)
+(defentity user_detector
+  (belongs-to user))
 
 (defentity alert
   (belongs-to metric))
 
 (defentity metric
   (has-many alert)
+  (has-many user_metric)
   (belongs-to detector)
   (many-to-many user :user_metric))
 
 (defentity detector
   (has-many metric)
+  (has-many user_detector)
   (many-to-many user :user_detector))
 
 (defn initialize-db []
@@ -58,6 +67,7 @@
       (id INTEGER PRIMARY KEY AUTOINCREMENT,
        user_id INTEGER NOT NULL,
        detector_id INTEGER NOT NULL,
+       metrics_filter TEXT,
        FOREIGN KEY(user_id) REFERENCES user(id)
        FOREIGN KEY(detector_id) REFERENCES detector(id))"
 
@@ -113,9 +123,10 @@
                                  :metric_id 1})))
   (when (empty? (select user_detector))
     (insert user_detector (values {:user_id 1
+                                   :metrics_filter ""
                                    :detector_id 1}))))
 
-(defn load []
+(defn initialize []
   (info "Loading database...")
   (initialize-db)
   (populate_db_test))
@@ -157,7 +168,8 @@
 (defn add-user [email]
   (-> (insert user (values {:email email}))))
 
-(defn edit-subscription [{:keys [user-id detector-id metric-id op]}]
+(defn edit-subscription [{:keys [user-id detector-id metrics-filter metric-id op] :as params}]
+  (println params)
   (if (= op "subscribe")
     (if metric-id
       (insert user_metric
@@ -165,6 +177,7 @@
                        :metric_id metric-id}))
       (insert user_detector
               (values {:user_id user-id
+                       :metrics_filter metrics-filter
                        :detector_id detector-id})))
     (if metric-id
       (delete user_metric
@@ -172,6 +185,7 @@
                       :metric_id metric-id}))
       (delete user_detector
               (where {:user_id user-id
+                      :metrics_filter metrics-filter
                       :detector_id detector-id})))))
 
 (defn get-user [email]
@@ -189,6 +203,19 @@
                              (fields [:id :detector_id])))
                  (with detector
                        (fields [:id :detector_id])))))
+
+(defn get-subscriptions [email]
+  (-> (select user
+                 (fields :id :email)
+                 (where (= :email email))
+                 (with user_detector
+                       (fields :metrics_filter :detector_id))
+                 (with metric
+                       (fields [:id :metric_id])
+                       (with detector
+                             (fields [:id :detector_id]))))
+      first
+      (set/rename-keys {:user_detector :detector})))
 
 (defn get-detectors
   ([]
