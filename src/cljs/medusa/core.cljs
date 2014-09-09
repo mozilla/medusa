@@ -312,26 +312,41 @@
                                                 (js/navigator.id.logout)))}
          (if user "Logout" "Login")]]))))
 
-(defn subscription-list [{{:keys [detector metric]} :subscriptions} owner]
+(defn subscription-list [{{:keys [detector metric]} :subscriptions
+                          [from to] :selected-date-range}
+                         owner]
   (reify
     om/IRender
     (render [_]
       (let [format-detector (fn [{:keys [detector_name metrics_filter]}]
-                              [:div
+                              [:div {:style {:overflow "hidden"}}
                                [:div [:small "Detector: " [:em detector_name]]]
                                (when (seq metrics_filter)
                                  [:div [:small "Filter: " [:em metrics_filter]]])])
             format-metric (fn [{:keys [metric_name detector_name]}]
-                            [:div
+                            [:div {:style {:overflow "hidden"}}
                              [:div [:small "Detector: " [:em detector_name]]]
-                             [:div [:small "Metric: " [:em metric_name]]]])]
-       (html [:div
-             [:label "Your Subscriptions:"]
-             [:div.list-group
-              (for [d detector]
-                [:a.list-group-item (format-detector d)])
-              (for [m metric]
-                [:a.list-group-item (format-metric m)])]])))))
+                             [:div [:small "Metric: " [:em metric_name]]]])
+            detector-click (fn [detector]
+                             (let [{:keys [detector_id metrics_filter]} @detector]
+                               (routing/goto :detector-id detector_id
+                                             :metrics-filter metrics_filter
+                                             :from from
+                                             :to to))
+                             )
+            metric-click (fn [metric]
+                           (let [{:keys [detector_id metric_id]} @metric]
+                             (routing/goto :detector-id detector_id
+                                           :metric-id metric_id
+                                           :from from
+                                           :to to)))]
+        (html [:div
+               [:label "Your Subscriptions:"]
+               [:div.list-group
+                (for [d detector]
+                  [:a.list-group-item {:on-click (partial detector-click d)} (format-detector d)])
+                (for [m metric]
+                  [:a.list-group-item {:on-click (partial metric-click m)} (format-metric m)])]])))))
 
 (defn layout [state owner]
   (reify
@@ -466,7 +481,8 @@
 
                 :detector-selected
                 (route-update {:selected-detector message
-                               :selected-metric nil})
+                               :selected-metric nil
+                               :metrics-filter nil})
 
                 :metric-selected
                 (route-update {:selected-metric message})
@@ -500,7 +516,7 @@
                                              :selected-date-range])
                          {:init-state {:event-channel event-channel}})
                (om/build subscription-list
-                         (select-keys state [:subscriptions]))
+                         (select-keys state [:subscriptions :selected-date-range]))
                (om/build error-notification (select-keys state [:error]))]
               [:div.col-md-9
                (om/build description
