@@ -19,6 +19,8 @@
     "application/edn" (edn/read data)
     data))
 
+;; needs to be parsed manually
+;; https://github.com/clojure-liberator/liberator/issues/39
 (defn get-body [ctx]
   (let [content-type (get-in ctx [:request :content-type])
         body (parse content-type (slurp (get-in ctx [:request :body])))]
