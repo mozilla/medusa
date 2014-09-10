@@ -503,7 +503,7 @@
     (render-state [_ {:keys [event-channel]}]
       (html [:div.container
              [:div.page-header
-              [:h1 "Telemetry alerting dashboard"]]
+              [:h1 "Telemetry alerts"]]
              [:div.row
               [:div.col-md-3
                (om/build persona

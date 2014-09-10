@@ -106,11 +106,11 @@
     (insert metric (values {:name "metric1",
                             :date "2014-07-02",
                             :description "metric descr",
-                            :detector_id 1}))
+                            :detector_id 2}))
     (insert metric (values {:name "metric2",
                             :date "2014-07-02",
                             :description "metric descr",
-                            :detector_id 1})))
+                            :detector_id 2})))
   (when (empty? (select alert))
     (insert alert (values {:date "2014-07-02",
                            :description "{}",
@@ -124,7 +124,7 @@
   (when (empty? (select user_detector))
     (insert user_detector (values {:user_id 1
                                    :metrics_filter ""
-                                   :detector_id 1}))))
+                                   :detector_id 2}))))
 
 (defn initialize []
   (info "Loading database...")

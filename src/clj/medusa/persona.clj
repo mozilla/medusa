@@ -10,7 +10,8 @@
 (defn verify-assertion [assertion]
   (let [options {:query-params {:assertion assertion
                                 ;;TODO: change audience to the real website
-                                :audience (str  "http://localhost:" (:port @config/state))}}
+                                :audience (str (:hostname @config/state)
+                                               ":" (:port @config/state))}}
         {:keys [status body error]} @(http-client/post "https://verifier.login.persona.org/verify" options)]
     (let [{:keys [status email] :as response} (json/parse-string body true)]
       (when (= status "okay")
