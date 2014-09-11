@@ -341,15 +341,20 @@
                              (routing/goto :detector-id detector_id
                                            :metric-id metric_id
                                            :from from
-                                           :to to)))]
+                                           :to to)))
+            format (fn [e]
+                     (if (:metric_name e)
+                       [:a.list-group-item {:on-click (partial metric-click e)} (format-metric e)]
+                       [:a.list-group-item {:on-click (partial detector-click e)} (format-detector e)]))]
         (when (seq subscriptions)
-          (html [:div
+          (let [sorted-entries (sort-by (fn [{:keys [detector_name metric_name metrics_filter]}]
+                                          (str detector_name metrics_filter metric_name))
+                                        (concat detector metric))]
+           (html [:div
                  [:label "Your Subscriptions:"]
                  [:div.list-group
-                  (for [d detector]
-                    [:a.list-group-item {:on-click (partial detector-click d)} (format-detector d)])
-                  (for [m metric]
-                    [:a.list-group-item {:on-click (partial metric-click m)} (format-metric m)])]]))))))
+                  (for [e sorted-entries]
+                    (format e))]])))))))
 
 (defn layout [state owner]
   (reify
