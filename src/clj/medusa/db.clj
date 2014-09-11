@@ -157,7 +157,7 @@
         (first)
         (second))))
 
-(defn add-alert [{:keys [:metric_id :date :description :date]}] ; returns rowid
+(defn add-alert [{:keys [:metric_id :description :date]}] ; returns rowid
   (-> (insert alert
               (values {:date date
                        :description description
@@ -193,6 +193,12 @@
                  (fields :id :email)
                  (where (= :email email)))))
 
+(defn get-metric [id]
+  (first (select metric (where (= :id id)))))
+
+(defn get-detector [id]
+  (first (select detector (where (= :id id)))))
+
 (defn get-subscriptions [email]
   (first (select user
                  (fields :id :email)
@@ -203,6 +209,43 @@
                              (fields [:id :detector_id])))
                  (with detector
                        (fields [:id :detector_id])))))
+
+(defn get-subscribers-for-metric [id]
+  (let [detector-subs (->>
+                       (select metric
+                               (fields [:id :metric_id] :name)
+                               (where (= :metric_id id))
+                               (with detector
+                                     (fields :id)
+                                     (with user_detector
+                                           (fields :metrics_filter :detector_id :user_id))))
+                       first)
+
+        detector-subs (let [{:keys [user_detector name]} detector-subs]
+                        (->>
+                         user_detector
+                         (filter #(re-find (re-pattern (:metrics_filter %)) name))
+                         (map :user_id)
+                         (apply hash-set)
+                         ))
+
+        metric-subs (->>
+                     (select metric
+                             (fields :id)
+                             (where (= :id id))
+                             (with user
+                                   (fields [:id :user_id])))
+                     first
+                     :user
+                     (map :user_id)
+                     (apply hash-set))
+
+        subs (let [subs (set/union metric-subs detector-subs)]
+               (map #(-> (select user (where (= :id %)))
+                         first
+                         :email)
+                    subs))]
+    subs))
 
 (defn get-subscriptions [email]
   (-> (select user
