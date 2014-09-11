@@ -382,12 +382,13 @@
                               (let [selected-detector (:selected-detector @state)
                                     selected-metric (:selected-metric @state)
                                     selected-start-date (get-in @state [:selected-date-range 0])
-                                    selected-end-date (get-in @state [:selected-date-range 1])]
-                                (match [selected-detector selected-metric]
-                                       [nil nil]
+                                    selected-end-date (get-in @state [:selected-date-range 1])
+                                    metrics (:metrics @state)]
+                                (match [selected-detector selected-metric metrics]
+                                       [nil nil _]
                                        ()
 
-                                       [_ nil]
+                                       [_ nil _]
                                        (do
                                          (update-resource state :metrics
                                                           (str "/detectors/" (:id selected-detector) "/metrics/"))
@@ -396,9 +397,10 @@
                                                           (str "/detectors/" (:id selected-detector) "/alerts/")
                                                           {:from selected-start-date
                                                            :to selected-end-date}))
-
-                                       [_ _]
+                                       [_ _ []] ;; happens when dashboard is loaded from URI
                                        (do
+                                         (update-resource state :metrics
+                                                          (str "/detectors/" (:id selected-detector) "/metrics/"))
                                          (update-resource state
                                                           :alerts
                                                           (str "/detectors/"
@@ -407,7 +409,17 @@
                                                                (:id selected-metric)
                                                                "/alerts/")
                                                           {:from selected-start-date
-                                                           :to selected-end-date})))))
+                                                           :to selected-end-date}))
+                                       [_ _ _]
+                                       (update-resource state
+                                                        :alerts
+                                                        (str "/detectors/"
+                                                             (:id selected-detector)
+                                                             "/metrics/"
+                                                             (:id selected-metric)
+                                                             "/alerts/")
+                                                        {:from selected-start-date
+                                                         :to selected-end-date}))))
             route-update (fn [updated-state]
                            (let [state (merge @state updated-state)
                                  {:keys [selected-detector metrics-filter selected-metric selected-date-range]} state

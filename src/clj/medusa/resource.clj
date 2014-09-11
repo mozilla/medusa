@@ -6,7 +6,15 @@
             [clojure.edn :as edn]
             [clojure.set :as set]
             [clj.medusa.db :as db]
-            [clj.medusa.persona :as persona]))
+            [clj.medusa.persona :as persona]
+            [taoensso.timbre :as timbre]))
+
+(timbre/refer-timbre)
+
+(defn simple-authorization [{{addr :remote-addr, method :request-method} :request :as ctx}]
+  (if (= method :get)
+    true
+    (= addr "127.0.0.1")))
 
 (defn handle-created [ks ctx]
   (let [id (get-in ctx ks)
@@ -29,6 +37,7 @@
 (defresource metrics-resource [query]
   :available-media-types ["application/edn" "application/json"]
   :allowed-methods [:get :post]
+  :authorized? simple-authorization
   :exists? (by-method
             {:get
              (fn [ctx]
@@ -53,6 +62,7 @@
 (defresource alerts-resource [query]
   :available-media-types ["application/edn" "application/json"]
   :allowed-methods [:get :post]
+  :authorized? simple-authorization
   :exists? (by-method
             {:get (fn [ctx]
                     (when-let [alerts (not-empty (vec (db/get-alerts query)))]
@@ -75,6 +85,7 @@
 (defresource detectors-resource [query]
   :available-media-types ["application/edn" "application/json"]
   :allowed-methods [:get :post]
+  :authorized? simple-authorization
   :exists? (by-method {:get (fn [ctx] (when-let [detectors (not-empty (vec (db/get-detectors query)))]
                                         {:detectors detectors}))
                        :post true})
@@ -121,6 +132,8 @@
   :allowed-methods [:get]
   :authorized? persona/authorized?
   :handle-ok (fn [{:keys [identity]}]
+               (when-not (:current identity)
+                 (warn "Persona identity missing, did you update the hostname in the configuration file?"))
                (db/get-user (:current identity))))
 
 (defresource logout []
