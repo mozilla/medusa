@@ -4,3 +4,4 @@ Medusa is a client/server system written in Clojure and Clojurescript that allow
 
 ## Usage
 
+To compile the dasbhoard from clojurescript to javascript run `lein cljsbuild once`. To launch the server simply yield `lein run`.
