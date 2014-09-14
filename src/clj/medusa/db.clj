@@ -138,7 +138,7 @@
   (= #{:name :description :detector_id} (set (keys metric))))
 
 (defn alert-is-valid? [alert]
-  (= #{:date :description :metric_id :detector_id} (set (keys alert))))
+  (= #{:date :description :metric_id :detector_id :emails} (set (keys alert))))
 
 (defn add-detector [{:keys [name url]}]
   (let [date (->> (time/now) (timef/unparse time-formatter))]
@@ -169,7 +169,6 @@
   (-> (insert user (values {:email email}))))
 
 (defn edit-subscription [{:keys [user-id detector-id metrics-filter metric-id op] :as params}]
-  (println params)
   (if (= op "subscribe")
     (if metric-id
       (insert user_metric

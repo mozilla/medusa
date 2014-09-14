@@ -7,6 +7,7 @@
             [clojure.set :as set]
             [clj.medusa.db :as db]
             [clj.medusa.persona :as persona]
+            [clj.medusa.alert :as alert]
             [taoensso.timbre :as timbre]))
 
 (timbre/refer-timbre)
@@ -14,7 +15,8 @@
 (defn simple-authorization [{{addr :remote-addr, method :request-method} :request :as ctx}]
   (if (= method :get)
     true
-    (= addr "127.0.0.1")))
+    (or (= addr "127.0.0.1")
+        (= addr "0:0:0:0:0:0:0:1"))))
 
 (defn handle-created [ks ctx]
   (let [id (get-in ctx ks)
@@ -78,6 +80,7 @@
            (let [alert (:alert ctx)
                  rowid (db/add-alert alert)
                  alert (assoc alert :alert_id rowid)]
+             (alert/notify-subscribers alert)
              {:alert alert}))
   :handle-created (partial handle-created [:alert :alert_id])
   :handle-ok :alerts)

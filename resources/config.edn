@@ -1,3 +1,4 @@
 {:port 8080
- :hostname "http://ec2-54-188-40-230.us-west-2.compute.amazonaws.com" 
- :database "resources/medusa.sqlite"}
+ :hostname "localhost" 
+ :database "resources/medusa.sqlite"
+ :dry-run true}

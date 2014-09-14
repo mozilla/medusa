@@ -1,16 +1,21 @@
 (ns clj.medusa.alert
   (:require [amazonica.aws.simpleemail :as ses]
+            [clojure.string :as string]
             [clj.medusa.config :as config]
-            [clj.medusa.db :as db]))
+            [clj.medusa.db :as db]
+            [clj.medusa.config :as config]))
 
 (defn send-email [subject body destinations]
-  (ses/send-email :destination {:to-addresses destinations}
-                  :source "telemetry-alerts@mozilla.com"
-                  :message {:subject subject
-                            :body {:text body}}))
+  (let [destinations ["rvitillo@mozilla.com"]] ;; TODO: remove once everything works
+    (when-not (:dry-run @config/state)
+      (ses/send-email :destination {:to-addresses destinations}
+                      :source "telemetry-alerts@mozilla.com"
+                      :message {:subject subject
+                                :body {:text body}}))))
 
-(defn notify-subscribers [{:keys [metric_id date]}]
+(defn notify-subscribers [{:keys [metric_id date emails]}]
   (let [{:keys [hostname port]} @config/state
+        foreign_subscribers (string/split emails #",")
         {metric_name :name,
          detector_id :detector_id
          metric_id :id} (db/get-metric metric_id)
@@ -19,4 +24,4 @@
     (send-email (str "Alert for " metric_name " (" detector_name ")")
                 (str hostname ":" port "/index.html#/detectors/" detector_id "/"
                      "metrics/" metric_id "/alerts/?from=" date "&to=" date)
-                subscribers))) 
+                (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))) 
