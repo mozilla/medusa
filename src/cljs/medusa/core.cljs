@@ -145,9 +145,6 @@
                   (select-keys state [:selected-date-range])
                   {:init-state {:event-channel event-channel}})]))))
 
-
-
-
 (defn alert-graph [{:keys [description date]} owner]
   (let [description->frame (fn [date description]
                              (let [series (.-series description)
@@ -155,8 +152,14 @@
                                    reference-series (.-reference-series description)
                                    reference-series-label (.-reference-series-label description)
                                    buckets (.-buckets description)]
-    (clj->js (concat [#js ["Buckets" series-label reference-series-label]]
-                     (map (fn [a b c] #js [(str a) b c]) buckets series reference-series)))))
+                               (clj->js (concat [#js ["Buckets" series-label reference-series-label]]
+                                                (map (fn [a b c] #js [(str a) b c]) buckets series reference-series)))))
+        update-title (fn []
+                       (let [element (om/get-node owner "alert-title")
+                             title (.-title description)
+                             link (.-link description)]
+                         (aset element "innerHTML" (str "<a href=\"" link "\">" title "</a>"))))
+
         draw-chart (fn []
                      (let [element (om/get-node owner "alert-description")
                            chart (js/google.visualization.LineChart. element)
@@ -173,17 +176,19 @@
     (reify
       om/IDidMount
       (did-mount [_]
+        (update-title)
         (draw-chart))
 
       om/IDidUpdate
       (did-update [_ _ _]
+        (update-title)
         (draw-chart))
 
       om/IRender
       (render [_]
         (html [:a.list-group-item
                [:div
-                [:h5.text-center (.-title description)]]
+                [:h5.text-center {:ref "alert-title"} (.-title description)]]
                [:div {:ref "alert-description"}]])))))
 
 (defn alert [{:keys [description date]} owner]
