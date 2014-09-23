@@ -38,7 +38,7 @@
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
       (html [:div.list-group
-             (for [detector detectors]
+             (for [detector (sort-by :name detectors)]
                [:a.list-group-item
                 {:class (when (= (:id selected-detector) (:id detector)) "active")
                  :on-click #(put! event-channel [:detector-selected @detector])}
