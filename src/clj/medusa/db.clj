@@ -129,7 +129,7 @@
 (defn initialize []
   (info "Loading database...")
   (initialize-db)
-  (populate_db_test))
+  #_(populate_db_test))
 
 (defn detector-is-valid? [detector]
   (= #{:name :url} (set (keys detector))))

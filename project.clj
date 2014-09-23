@@ -3,6 +3,7 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :main "clj.medusa.core"
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [http-kit "2.1.16"]
                  [compojure "1.1.8"]
@@ -29,12 +30,18 @@
   :plugins  [[lein-cljsbuild  "1.0.4-SNAPSHOT"]
              [com.cemerick/austin  "0.1.4"]]
 
-  :cljsbuild {
-              :builds [{:id "dev"
+  :cljsbuild {:builds [{:id "dev"
+                        :source-paths ["src/cljs/medusa"]
+                        :compiler {
+                                   :output-to "resources/public/medusa_dev.js"
+                                   :output-dir "resources/public/out_dev"
+                                   :optimizations :none
+                                   :pretty-print true
+                                   :source-map true}}
+                       {:id "release"
                         :source-paths ["src/cljs/medusa"]
                         :compiler {
                                    :output-to "resources/public/medusa.js"
                                    :output-dir "resources/public/out"
-                                   :optimizations :none
-                                   :pretty-print true
-                                   :source-map true}}]})
+                                   :optimizations :simple
+                                   :pretty-print false}}]})

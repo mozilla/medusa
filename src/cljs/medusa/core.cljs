@@ -38,7 +38,7 @@
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
       (html [:div.list-group
-             (for [detector detectors]
+             (for [detector (sort-by :name detectors)]
                [:a.list-group-item
                 {:class (when (= (:id selected-detector) (:id detector)) "active")
                  :on-click #(put! event-channel [:detector-selected @detector])}
@@ -191,10 +191,55 @@
                 [:h5.text-center {:ref "alert-title"} (.-title description)]]
                [:div {:ref "alert-description"}]])))))
 
+(defn alert-boxplot [{:keys [description date]} owner]
+  (let [draw-chart (fn []
+                     (let [data (google.visualization.arrayToDataTable #js [#js ["Label" "Min - Max, Q1 - Q3" "" "" "" date #js {"type" "string", "role" "annotation"}]
+                                                                            (clj->js (.-boxplot description))])
+                           formatter (google.visualization.NumberFormat. #js {"fractionDigits" 4})
+                           _ (do
+                               (.format formatter data 1)
+                               (.format formatter data 2)
+                               (.format formatter data 3)
+                               (.format formatter data 4)
+                               (.format formatter data 5))
+                           element (om/get-node owner "alert-description")
+                           chart (js/google.visualization.ComboChart. element)
+                           options #js {:height 500
+                                        :legend "none"
+                                        :series #js {"0" #js {"type" "candlesticks"}
+                                                     "1" #js {"type" "line"
+                                                              "pointSize" 10
+                                                              "lineWidth" 0
+                                                              "color" "red"}}}]
+                       (.draw chart data options)))
+        update-title (fn []
+                       (let [element (om/get-node owner "alert-title")
+                             title (.-title description)
+                             link (.-link description)]
+                         (aset element "innerHTML" (str "<a href=\"" link "\">" title "</a>"))))]
+    (reify
+      om/IDidMount
+      (did-mount [_]
+        (update-title)
+        (draw-chart))
+
+    om/IDidUpdate
+    (did-update [_ _ _]
+      (update-title)
+      (draw-chart))
+
+    om/IRender
+    (render [_]
+      (html [:a.list-group-item
+             [:div
+              [:h5.text-center {:ref "alert-title"} (.-title description)]]
+             [:div {:ref "alert-description"}]])))))
+
 (defn alert [{:keys [description date]} owner]
   (let [description (.parse js/JSON description)]
     (condp = (.-type description)
       "graph" (alert-graph {:date date, :description description} owner)
+      "boxplot" (alert-boxplot {:date date, :description description} owner)
       nil)))
 
 (defn alerts-list [{:keys [alerts metrics-filter]}]
