@@ -28,7 +28,11 @@
                  [secretary "1.2.1"]]
 
   :plugins  [[lein-cljsbuild  "1.0.4-SNAPSHOT"]
-             [com.cemerick/austin  "0.1.4"]]
+             [com.cemerick/austin  "0.1.4"]
+             [lein-daemon "0.5.4"]]
+
+  :daemon {:medusa {:ns clj.medusa.core 
+                    :pidfile "medusa.pid"}}
 
   :cljsbuild {:builds [{:id "dev"
                         :source-paths ["src/cljs/medusa"]

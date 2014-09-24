@@ -46,4 +46,5 @@
 (config/initialize)
 (db/initialize)
 
-(http/run-server (reload/wrap-reload (handler/site #'handler)) {:port (:port @config/state)})
+(defn -main []
+  (http/run-server (reload/wrap-reload (handler/site #'handler)) {:port (:port @config/state)}))
