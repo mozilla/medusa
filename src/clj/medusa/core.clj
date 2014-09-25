@@ -14,6 +14,7 @@
                              [credentials :as creds])))
 
 (defroutes app
+  (GET "/status" [] "ok")
   (ANY "/login" []
        (resource/login))
   (ANY "/logout" []
