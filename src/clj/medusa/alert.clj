@@ -1,5 +1,6 @@
 (ns clj.medusa.alert
   (:require [amazonica.aws.simpleemail :as ses]
+            [amazonica.core :as aws]
             [clojure.string :as string]
             [clj.medusa.config :as config]
             [clj.medusa.db :as db]

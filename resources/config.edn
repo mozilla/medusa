@@ -1,4 +1,4 @@
 {:port 8080
  :hostname "localhost" 
  :database "resources/medusa.sqlite"
- :dry-run true}
+ :dry-run false}
