@@ -7,12 +7,11 @@
             [clj.medusa.config :as config]))
 
 (defn send-email [subject body destinations]
-  (let [destinations ["rvitillo@mozilla.com"]] ;; TODO: remove once everything works
-    (when-not (:dry-run @config/state)
-      (ses/send-email :destination {:to-addresses destinations}
-                      :source "telemetry-alerts@mozilla.com"
-                      :message {:subject subject
-                                :body {:html (str "<a href=\"" body "\">" body "</a>")}}))))
+  (when-not (:dry-run @config/state)
+    (ses/send-email :destination {:to-addresses destinations}
+                    :source "telemetry-alerts@mozilla.com"
+                    :message {:subject subject
+                              :body {:html (str "<a href=\"" body "\">" body "</a>")}})))
 
 (defn notify-subscribers [{:keys [metric_id date emails]}]
   (let [{:keys [hostname]} @config/state
