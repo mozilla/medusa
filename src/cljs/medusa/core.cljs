@@ -13,7 +13,7 @@
   (:require-macros [cljs.core.async.macros :refer [go]]
                    [cljs.core.match.macros :refer [match]]))
 
-(ws-repl/connect "ws://localhost:9001" :verbose true)
+#_(ws-repl/connect "ws://localhost:9001" :verbose true)
 (enable-console-print!)
 
 (def date-formatter (timef/formatter "yyyy-MM-dd"))
