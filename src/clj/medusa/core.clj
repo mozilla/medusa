@@ -42,7 +42,7 @@
 
 (def handler
   (-> app
-      (wrap-trace :header :ui)
+      #_(wrap-trace :header :ui)
       (friend/authenticate {:credential-fn persona/credential-fn
                             :workflows [(partial persona/workflow "/login")]})))
 
