@@ -15,7 +15,7 @@
                                 :body {:html (str "<a href=\"" body "\">" body "</a>")}}))))
 
 (defn notify-subscribers [{:keys [metric_id date emails]}]
-  (let [{:keys [hostname port]} @config/state
+  (let [{:keys [hostname]} @config/state
         foreign_subscribers (string/split emails #",")
         {metric_name :name,
          detector_id :detector_id
@@ -23,6 +23,6 @@
         {detector_name :name} (db/get-detector detector_id)
         subscribers (db/get-subscribers-for-metric metric_id)]
     (send-email (str "Alert for " metric_name " (" detector_name ") on the " date)
-                (str "http://" hostname ":" port "/index.html#/detectors/" detector_id "/"
+                (str "http://" hostname "/index.html#/detectors/" detector_id "/"
                      "metrics/" metric_id "/alerts/?from=" date "&to=" date)
                 (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))) 
