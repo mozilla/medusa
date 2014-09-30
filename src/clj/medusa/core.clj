@@ -9,11 +9,13 @@
             [clj.medusa.resource :as resource]
             [clj.medusa.persona :as persona]
             [ring.middleware.reload :as reload]
+            [ring.util.response :as response]
             [cemerick.friend :as friend]
             (cemerick.friend [workflows :as workflows]
                              [credentials :as creds])))
 
 (defroutes app
+  (GET "/" [] (response/redirect "index.html"))
   (GET "/status" [] "ok")
   (ANY "/login" []
        (resource/login))
