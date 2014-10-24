@@ -1,4 +1,4 @@
 {:port 8080
- :hostname "telemetry-regressions-lb-1119531246.us-west-2.elb.amazonaws.com"
+ :hostname "alerts.telemetry.mozilla.org"
  :database "resources/medusa.sqlite"
  :dry-run false}
