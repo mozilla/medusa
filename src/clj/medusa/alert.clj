@@ -15,7 +15,7 @@
 
 (defn notify-subscribers [{:keys [metric_id date emails]}]
   (let [{:keys [hostname]} @config/state
-        foreign_subscribers (when emails (string/split emails #","))
+        foreign_subscribers (when (seq emails) (string/split emails #","))
         {metric_name :name,
          detector_id :detector_id
          metric_id :id} (db/get-metric metric_id)
