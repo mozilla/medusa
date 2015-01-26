@@ -11,7 +11,7 @@
     (ses/send-email :destination {:to-addresses destinations}
                     :source "telemetry-alerts@mozilla.com"
                     :message {:subject subject
-                              :body {:html (str "<a href=\"" body "\">" body "</a>")}})))
+                              :body {:text body}})))
 
 (defn notify-subscribers [{:keys [metric_id date emails]}]
   (let [{:keys [hostname]} @config/state
