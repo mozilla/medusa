@@ -1,5 +1,5 @@
 (ns cljs.medusa.routing
-  (:require [secretary.core :as secretary :include-macros true :refer [defroute]]
+  (:require [secretary.core :as secretary :refer-macros [defroute]]
             [cljs.core.async :refer  [<! >! put! close! chan pub sub]]
             [cljs.core.match]
             [goog.events :as events]

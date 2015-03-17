@@ -20,15 +20,15 @@
                  [amazonica "0.2.24"]
 
                  [weasel "0.4.0-SNAPSHOT"]
-                 [org.clojure/clojurescript "0.0-2311"]
+                 [org.clojure/clojurescript "0.0-3123"]
                  [om "0.7.0"]
                  [sablono "0.2.21"]
                  [cljs-ajax  "0.2.6"]
                  [com.andrewmcveigh/cljs-time "0.1.6"]
-                 [secretary "1.2.1"]]
+                 [secretary "1.2.2"]]
 
   :plugins  [[lein-cljsbuild  "1.0.4-SNAPSHOT"]
-             [com.cemerick/austin  "0.1.4"]
+             [com.cemerick/austin  "0.1.6"]
              [lein-daemon "0.5.4"]]
 
   :daemon {:medusa {:ns clj.medusa.core 
