@@ -94,8 +94,7 @@
             end-element (js/$ (om/get-node owner "end-date"))
             start-datepicker (.datepicker start-element #js {:format "yyyy-mm-dd"})
             end-datepicker (.datepicker end-element #js {:format "yyyy-mm-dd"})
-            format-date #(timef/unparse date-formatter (time/plus (time/date-time (.-date %))
-                                                                  (time/days 1)))]
+            format-date #(timef/unparse date-formatter (time/date-time (.-date %)))]
         (.on start-datepicker "changeDate" (fn [e]
                                              (.datepicker start-element "hide")
                                              (put! event-channel [:from-selected (format-date e)])))
