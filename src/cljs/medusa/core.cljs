@@ -9,6 +9,7 @@
             [cljs.core.match]
             [cljs-time.core :as time]
             [cljs-time.format :as timef]
+            [cljs-time.coerce :as timec]
             [cljs.medusa.routing :as routing])
   (:require-macros [cljs.core.async.macros :refer [go]]
                    [cljs.core.match.macros :refer [match]]))
@@ -94,8 +95,9 @@
             end-element (js/$ (om/get-node owner "end-date"))
             start-datepicker (.datepicker start-element #js {:format "yyyy-mm-dd"})
             end-datepicker (.datepicker end-element #js {:format "yyyy-mm-dd"})
-            format-date #(timef/unparse date-formatter (time/plus (time/date-time (.-date %))
-                                                                  (time/days 1)))]
+            format-date #(timef/unparse date-formatter
+                                        (timec/from-long (- (.getTime (.-date %))
+                                                            (* (.getTimezoneOffset (.-date %)) 60000))))]
         (.on start-datepicker "changeDate" (fn [e]
                                              (.datepicker start-element "hide")
                                              (put! event-channel [:from-selected (format-date e)])))
