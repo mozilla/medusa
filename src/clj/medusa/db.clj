@@ -117,6 +117,9 @@
                            :metric_id 2}))
     (insert alert (values {:date "2014-07-05",
                            :description "{}",
+                           :metric_id 2}))
+    (insert alert (values {:date "2014-07-06",
+                           :description "{\"x_label\": \"Update: number of sequential update elevation request cancelations greater than 0 (timer initiated)\", \"type\": \"graph\", \"link\": \"http://telemetry.mozilla.org/#filter=nightly/nn/UPDATE_PREF_UPDATE_CANCELATIONS_NOTIFY\", \"reference_series\": [0.0, 0.35934799909591675, 0.153371199965477], \"y_label\": \"Normalized Frequency Count\", \"series_label\": \"2015-05-25\", \"series\": [0.0, 0.3749297261238098, 0.1498032659292221], \"buckets\": [0, 1, 2], \"title\": \"UPDATE_PREF_UPDATE_CANCELATIONS_NOTIFY\", \"reference_series_label\": \"Previous build-id\"}",
                            :metric_id 2})))
   (when (empty? (select user_metric))
     (insert user_metric (values {:user_id 1

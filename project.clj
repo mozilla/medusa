@@ -17,7 +17,10 @@
                  [org.clojure/core.match  "0.2.1"]
                  [clj-time "0.8.0"]
                  [com.cemerick/friend "0.2.1"]
-                 [amazonica "0.2.24"]
+                 [amazonica "0.2.24" :exclusions [joda-time]]
+                 [clj-http-lite "0.2.1"]
+                 [clj-tagsoup "0.3.0" :exclusions [org.clojure/clojure]]
+                 [org.clojure/tools.logging "0.3.1"]
 
                  [weasel "0.4.0-SNAPSHOT"]
                  [org.clojure/clojurescript "0.0-3123"]
