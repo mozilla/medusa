@@ -53,7 +53,7 @@
   "Finds the hg revision of associated with the buildid `buildid` on channel `channel`."
   [buildid channel]
   (let [p (split-buildid buildid)
-        build-dir-url (format "http://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/%02d-%02d-%02d-%02d-%02d-%02d-%s/"
+        build-dir-url (format "https://archive.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/%02d-%02d-%02d-%02d-%02d-%02d-%s/"
                     (:y p) (:m p) (:y p) (:m p) (:d p) (:hour p) (:min p) (:sec p) channel)]
     (find-build-dir-revision build-dir-url)))
 
@@ -63,7 +63,7 @@
   (let [p (split-buildid buildid)
 
         ;; Obtain a list of links to build directories in the desired channel
-        build-dirs-url (format "https://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/" (:y p) (:m p))
+        build-dirs-url (format "https://archive.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/" (:y p) (:m p))
         target (format "%02d-%02d-%02d-%02d-%02d-%02d-%s/" (:y p) (:m p) (:d p) (:hour p) (:min p) (:sec p) channel)
         response (tagsoup/parse build-dirs-url)
         links (elements-by-tag-name response :a)
@@ -77,7 +77,7 @@
               month (if (= (:m p) 0) 12 (dec (:m p)))
 
               ;; Obtain the last link to build directories in the desired channel in the previous month's folder, which is the build dir of the last build in the previous month
-              prev-build-dirs-url (format "https://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/" year month)
+              prev-build-dirs-url (format "https://archive.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/" year month)
               response (tagsoup/parse prev-build-dirs-url)
               links (elements-by-tag-name response :a)
               target-link (last (filter #(.endsWith (get % 2) build-dirs-suffix) links))
@@ -100,7 +100,7 @@
   [date channel]
   (let [[_ year month day] (re-find #"^(\d{4})-(\d{2})-(\d{2})$" date)
         build-dirs-suffix (format "-%s/" channel)
-        build-dirs-url (format "https://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/%s/%s/" year month)
+        build-dirs-url (format "https://archive.mozilla.org/pub/mozilla.org/firefox/nightly/%s/%s/" year month)
         response (tagsoup/parse build-dirs-url)
         links (elements-by-tag-name response :a)
         build-dirs-links (filter #(.endsWith (get % 2) build-dirs-suffix) links)
