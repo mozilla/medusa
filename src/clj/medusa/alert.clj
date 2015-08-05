@@ -36,7 +36,7 @@
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url "\n\n" "Changeset for " buildid ": " changeset-url)
                     (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))
-      (catch Exception e ; could not find revisions for the given build date
+      (catch Throwable e ; could not find revisions for the given build date
         (log/error e "Retrieving changeset failed")
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url)
