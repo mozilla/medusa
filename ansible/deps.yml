@@ -1,0 +1,20 @@
+- name: Install packages
+  sudo: yes
+  apt: name={{item}} state=installed update_cache=yes cache_valid_time=3600
+  with_items:
+    - openjdk-7-jre-headless
+    - openjdk-7-jdk
+    - maven2
+    - git
+  register: install_jdk
+
+- name: set java7 as default
+  sudo: yes
+  command: update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java
+  when: install_jdk.changed
+
+- name: download leiningen
+  sudo: yes
+  get_url: url=https://raw.github.com/technomancy/leiningen/stable/bin/lein
+           dest=/usr/local/bin/lein
+           mode=0755

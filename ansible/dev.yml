@@ -1,0 +1,11 @@
+- remote_user: ubuntu
+  hosts: service
+
+  vars:
+    - project_directory: /vagrant/
+
+  tasks:
+    - include: deps.yml
+
+    - name: Install clojure deps
+      command: lein deps chdir={{project_directory}}

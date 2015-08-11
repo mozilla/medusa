@@ -1,0 +1,8 @@
+[program:medusa]
+environment=LEIN_ROOT=1
+directory={{project_directory}}
+command=lein run
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/medusa.err.log
+stdout_logfile=/var/log/medusa.out.log

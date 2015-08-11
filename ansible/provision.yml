@@ -1,0 +1,69 @@
+- name: provision aws resources
+  hosts: localhost
+  remote_user: ubuntu
+  vars:
+    - region: us-west-2
+
+  tasks:
+    - name: create VPC
+      ec2_vpc:
+        state: present
+        cidr_block: 10.10.0.0/16
+        resource_tags: { "type": "telemetry", "application": "regression-detector" }
+        region: "{{region}}"
+        internet_gateway: yes
+        subnets:
+          - cidr: 10.10.0.0/24
+        route_tables:
+          - subnets:
+             - 10.10.0.0/24
+            routes:
+              - dest: 0.0.0.0/0
+                gw: igw
+        wait: yes
+      register: vpc
+
+    - name: create security group for service
+      ec2_group:
+        name: telemetry-regression-detector
+        description: telemetry regression detector
+        region: "{{region}}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+        vpc_id: "{{vpc.vpc_id}}"
+
+    - name: get a recent ubuntu AMI
+      ec2_ami_search: distro=ubuntu release=utopic store=instance-store region={{region}}
+      register: ubuntu_image
+
+    - name: create instance
+      ec2:
+        image: "{{ubuntu_image.ami}}"
+        region: "{{region}}"
+        instance_type: m3.medium
+        key_name: mozilla_vitillo
+        assign_public_ip: yes
+        group: telemetry-regression-detector
+        instance_tags: { Name: telemetry-regression-detector, type: telemetry, Owner: rvitillo@mozilla.com }
+        exact_count: 1
+        count_tag: { Name: telemetry-regression-detector }
+        vpc_subnet_id: "{{vpc.subnets[0].id}}"
+        instance_profile_name: "telemetry-regressions-v2-WebServerIAMProfile-A2ACSVMYN6UN"
+        wait: yes
+      register: ec2
+
+    - name: wait for ssh server to be running
+      wait_for: host={{ item.public_dns_name }} port=22 search_regex=OpenSSH
+      with_items: ec2.instances
+
+    - name: add new instance to the service group
+      add_host: hostname={{ item.public_dns_name }} groups=service
+      with_items: ec2.tagged_instances
+
+- include: deploy.yml

@@ -1,0 +1,35 @@
+- remote_user: ubuntu
+  hosts: service
+
+  vars:
+    - project_directory: "{{ansible_env.HOME}}/medusa"
+
+  tasks:
+    - include: deps.yml
+
+    - name: install packages
+      sudo: yes
+      apt: name={{item}} state=installed update_cache=yes cache_valid_time=3600
+      with_items:
+        - supervisor
+
+    - name: install medusa
+      git: repo=git://github.com/mozilla/medusa.git dest={{project_directory}} update=yes accept_hostkey=yes
+
+    - name: install clojure deps
+      sudo: yes
+      environment:
+        LEIN_ROOT: 1
+      command: lein deps chdir={{project_directory}}
+
+    - name: setup service
+      sudo: yes
+      template: src=templates/medusa.j2 dest=/etc/supervisor/conf.d/medusa.conf
+
+    - name: restart supervisor
+      sudo: yes
+      command: service supervisor restart
+
+    - name: start service
+      sudo: yes
+      supervisorctl: name=medusa state=started
