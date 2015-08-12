@@ -12,6 +12,7 @@
       apt: name={{item}} state=installed update_cache=yes cache_valid_time=3600
       with_items:
         - supervisor
+        - awscli
 
     - name: install medusa
       git: repo=git://github.com/mozilla/medusa.git dest={{project_directory}} update=yes accept_hostkey=yes
@@ -33,3 +34,7 @@
     - name: start service
       sudo: yes
       supervisorctl: name=medusa state=started
+
+    - name: schedule daily db backup
+      sudo: yes
+      cron: name="medusa backup" hour=8 job="aws s3 cp {{project_directory}}/resources/medusa.sqlite s3://telemetry-regressions-v1/medusa_v4.sqlite" cron_file=medusa_backup user=root

@@ -33,6 +33,10 @@
             from_port: 22
             to_port: 22
             cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 8080
+            to_port: 8080
+            cidr_ip: 0.0.0.0/0
         rules_egress:
           - proto: all
             cidr_ip: 0.0.0.0/0
@@ -65,5 +69,54 @@
     - name: add new instance to the service group
       add_host: hostname={{ item.public_dns_name }} groups=service
       with_items: ec2.tagged_instances
+
+    - name: create security group for elb
+      ec2_group:
+        name: telemetry-regression-detector-elb
+        description: telemetry regression detector elb
+        region: "{{region}}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+        vpc_id: "{{vpc.vpc_id}}"
+      register: elb_group
+
+    - name: setup elb
+      ec2_elb_lb:
+        name: telemetry-regression-detector
+        region: "{{region}}"
+        state: present
+        security_group_ids:
+          - "{{elb_group.group_id}}"
+        subnets:
+          - "{{vpc.subnets[0].id}}"
+        listeners:
+          - protocol: http
+            load_balancer_port: 80
+            instance_port: 8080
+        health_check:
+          ping_protocol: http
+          ping_port: 8080
+          ping_path: "/status"
+          response_timeout: 50 # seconds
+          interval: 60 # seconds
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+      register: elb
+
+    - name: register instance to elb
+      ec2_elb:
+        ec2_elbs: "{{elb.elb.name}}"
+        region: "{{region}}"
+        instance_id: "{{item.id}}"
+        state: present
+        wait: true
+      with_items: ec2.tagged_instances
+      ignore_errors: yes
 
 - include: deploy.yml

@@ -10,6 +10,11 @@ vagrant up
 vagrant ssh
 ```
 
+To provision resources and deploy medusa on AWS:
+```bash
+ansible-playbook ansible/provision.yml -i ansible/inventory
+```
+
 ## Usage
 
-To launch the server simply yield `lein daemon start medusa`. Note that you must have a recent version of leiningen installed (> 2); some distributions ship with earlier versions.
+To launch the server simply yield `lein run`. Note that you must have a recent version of leiningen installed (> 2); some distributions ship with earlier versions.
