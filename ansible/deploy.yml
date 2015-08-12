@@ -38,3 +38,8 @@
     - name: schedule daily db backup
       sudo: yes
       cron: name="medusa backup" hour=8 job="aws s3 cp {{project_directory}}/resources/medusa.sqlite s3://telemetry-regressions-v1/medusa_v4.sqlite" cron_file=medusa_backup user=root
+
+    - name: Restart cron
+      sudo: yes
+      service: name=cron state=restarted
+
