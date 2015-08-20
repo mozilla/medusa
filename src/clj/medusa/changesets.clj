@@ -46,7 +46,7 @@
     (assert (= (count text-file-links) 1) "Could not find revision ID text file")
     (let [revision-file-url (str build-dir-url (:href (second (first text-file-links))))
           revision-file (:body (client/get revision-file-url))
-          revision (re-find #"https:\/\/hg\.mozilla.*([0-9a-f]{12})$" revision-file)]
+          revision (re-find #"https:\/\/hg\.mozilla.*rev/([0-9a-f]+)$" revision-file)]
       (second revision))))
 
 (defn- find-build-revision
