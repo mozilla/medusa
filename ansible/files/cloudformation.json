@@ -1,0 +1,89 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Cloudformation template for medusa",
+
+  "Parameters": {
+    "BucketName": {
+      "Type": "String",
+      "Description": "Bucket used for database backups."
+    }
+  },
+
+  "Resources": {
+    "Bucket": {
+      "Type" : "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {"Ref": "BucketName"}
+      }
+    },
+    "TelemetryMedusaRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument":{
+          "Statement":[
+            {
+              "Effect":"Allow",
+              "Principal":{ "Service":[ "ec2.amazonaws.com" ] },
+              "Action":[ "sts:AssumeRole" ]
+            }
+          ]
+        },
+        "Policies": [{
+          "PolicyName": "SendEmailAlerts",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement":[
+              {
+                "Resource":"*",
+                "Action":["ses:SendEmail","ses:SendRawEmail","ses:VerifyEmailAddress"],
+                "Effect":"Allow"}
+            ]
+          }
+        }, {
+          "PolicyName": "WriteS3Backups",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+
+            "Statement": [
+              {
+                "Resource": "arn:aws:s3:::*",
+                "Action": [
+                  "s3:GetBucketLocation",
+                  "s3:ListAllMyBuckets"
+                ],
+                "Effect": "Allow"
+              },
+              {
+                "Resource": [{"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "Bucket"}, "/*"]]}],
+                "Action": [
+                  "s3:ListBucket",
+                  "s3:PutObject",
+                  "s3:GetObject",
+                  "s3:DeleteObject"
+                ],
+                "Effect": "Allow"
+              }
+            ]
+          }
+        }]
+      }
+    },
+
+    "TelemetryMedusaInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ {
+          "Ref": "TelemetryMedusaRole"
+        } ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "InstanceProfile": {
+      "Description": "Medusa instance profile",
+      "Value": {"Ref": "TelemetryMedusaInstanceProfile"}
+    }
+  }
+}
