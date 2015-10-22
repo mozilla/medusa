@@ -19,7 +19,7 @@ vagrant up
 vagrant ssh
 ```
 
-To provision resources and deploy medusa on AWS:
+To provision resources and deploy medusa on AWS, first edit `ansible/provision.yml`, replacing the vaue of `key_name` with your own key, then:
 ```bash
 ansible-playbook ansible/provision.yml -i ansible/inventory
 ```
