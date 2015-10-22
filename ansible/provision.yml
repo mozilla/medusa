@@ -3,8 +3,23 @@
   remote_user: ubuntu
   vars:
     - region: us-west-2
+    - backup_bucket: "telemetry-medusa-backup"
 
   tasks:
+    - name: launch cloudformation
+      cloudformation:
+        stack_name: "telemetry-medusa-cloudformation"
+        state: "present"
+        region: "us-west-2"
+        disable_rollback: true
+        template: "files/cloudformation.json"
+        template_parameters:
+          BucketName: "{{backup_bucket}}"
+        tags:
+          type: "telemetry"
+          application: "regression-detector"
+      register: cloudformation
+
     - name: create VPC
       ec2_vpc:
         state: present
@@ -43,7 +58,7 @@
         vpc_id: "{{vpc.vpc_id}}"
 
     - name: get a recent ubuntu AMI
-      ec2_ami_search: distro=ubuntu release=utopic store=instance-store region={{region}}
+      ec2_ami_search: distro=ubuntu release=vivid store=instance-store region={{region}}
       register: ubuntu_image
 
     - name: create instance
@@ -58,7 +73,7 @@
         exact_count: 1
         count_tag: { Name: telemetry-regression-detector }
         vpc_subnet_id: "{{vpc.subnets[0].id}}"
-        instance_profile_name: "telemetry-regressions-v2-WebServerIAMProfile-A2ACSVMYN6UN"
+        instance_profile_name: "{{cloudformation.stack_outputs.InstanceProfile}}"
         wait: yes
       register: ec2
 
@@ -107,7 +122,7 @@
             load_balancer_port: 443
             instance_protocol: http
             instance_port: 8080
-            ssl_certificate_id: "arn:aws:iam::142069644989:server-certificate/exp20180829_star_telemetry_mozilla_org"
+            ssl_certificate_id: "arn:aws:iam::927034868273:server-certificate/exp20180829_star_telemetry_mozilla_org"
         health_check:
           ping_protocol: http
           ping_port: 8080
@@ -129,3 +144,5 @@
       ignore_errors: yes
 
 - include: deploy.yml
+  vars:
+    backup_bucket: "telemetry-medusa-backup"
