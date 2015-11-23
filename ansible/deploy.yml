@@ -3,6 +3,7 @@
 
   vars:
     - project_directory: "{{ansible_env.HOME}}/medusa"
+    - aws_directory: "{{ansible_env.HOME}}/.aws"
 
   tasks:
     - include: deps.yml
@@ -26,6 +27,12 @@
     - name: setup service
       sudo: yes
       template: src=templates/medusa.j2 dest=/etc/supervisor/conf.d/medusa.conf
+
+    - name: Ensures {{aws_directory}} dir exists
+      file: path={{aws_directory}} state=directory
+
+    - name: setup aws
+      template: src=templates/config dest="{{aws_directory}}/config"
 
     - name: restart supervisor
       sudo: yes
