@@ -15,7 +15,8 @@
         (println "SUBJECT: " subject)
         (println "BODY: " subject)
         (println "===================================================="))
-    (ses/send-email :destination {:to-addresses destinations}
+    (ses/send-email {:endpoint "us-west-2"}
+                    :destination {:to-addresses destinations}
                     :source "telemetry-alerts@mozilla.com"
                     :message {:subject subject
                               :body {:text body}})))
