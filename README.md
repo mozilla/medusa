@@ -1,7 +1,7 @@
 Medusa
 ======
 
-Medusa is a tracking, alerting, and visualization service for regressions in [Telemetry](http://telemetry.mozilla.org/). It aims to provide a unified frontend for managing regression alerts.
+[Medusa](http://alerts.telemetry.mozilla.org/index.html) (also known as Telemetry Alerts) is a tracking, alerting, and visualization service for regressions in [Telemetry](http://telemetry.mozilla.org/). It aims to provide a unified frontend for managing regression alerts.
 
 Medusa does not perform detection of regressions by itself; it exposes an API that **detectors** - services that detect regressions - can post to. For example, [Cerberus](https://github.com/mozilla/cerberus#readme) is a detector for histogram regressions.
 
