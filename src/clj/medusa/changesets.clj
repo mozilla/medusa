@@ -5,13 +5,13 @@
 ;; This library finds changesets given build dates (dates of the form YYYY-MM-DD)
 ;; or build IDs (exact build timestamps of the form YYYYMMDDhhmmss).
 ;;
-;; Example: obtaining a link to the changesets for build date 2015-05-03:
+;; Example: obtaining a link to the changesets for build date 2016-01-06:
 ;;
-;;     (println (find-build-changeset (find-date-buildid "2015-05-03" "mozilla-central") "mozilla-central"))
+;;     (println (find-build-changeset (find-date-buildid "2016-01-06" "mozilla-central") "mozilla-central"))
 ;;
-;; Example: obtaining a link to changesets for buildid 20150503030209
+;; Example: obtaining a link to changesets for buildid 20160106030225
 ;;
-;;     (println (find-build-changeset "20150503030209" "mozilla-central"))
+;;     (println (find-build-changeset "20160106030225" "mozilla-central"))
 
 (declare elements-by-tag-name)
 
@@ -42,9 +42,9 @@
   [build-dir-url]
   (let [response (tagsoup/parse build-dir-url)
         links (elements-by-tag-name response :a)
-        text-file-links (filter #(re-find #"^firefox.*win32\.txt$" (get % 2)) links)]
+        text-file-links (filter #(re-find #"^firefox-.*win32\.txt$" (get % 2)) links)]
     (assert (= (count text-file-links) 1) "Could not find revision ID text file")
-    (let [revision-file-url (str build-dir-url (:href (second (first text-file-links))))
+    (let [revision-file-url (str "https://archive.mozilla.org" (:href (second (first text-file-links))))
           revision-file (:body (client/get revision-file-url))
           revision (re-find #"https:\/\/hg\.mozilla.*rev/([0-9a-f]+)$" revision-file)]
       (second revision))))
@@ -64,7 +64,7 @@
 
         ;; Obtain a list of links to build directories in the desired channel
         build-dirs-url (format "https://archive.mozilla.org/pub/mozilla.org/firefox/nightly/%02d/%02d/" (:y p) (:m p))
-        target (format "%02d-%02d-%02d-%02d-%02d-%02d-%s/" (:y p) (:m p) (:d p) (:hour p) (:min p) (:sec p) channel)
+        target (format "%04d-%02d-%02d-%02d-%02d-%02d-%s/" (:y p) (:m p) (:d p) (:hour p) (:min p) (:sec p) channel)
         response (tagsoup/parse build-dirs-url)
         links (elements-by-tag-name response :a)
         build-dirs-suffix (format "-%s/" channel)
@@ -84,8 +84,15 @@
               build-dir-url (str prev-build-dirs-url (:href (second target-link)))]
           (find-build-dir-revision build-dir-url))
         (let [target-link (nth build-dirs-links target-link-index) ; get the build directory and the revision from the link
-              build-dir-url (str build-dirs-url (:href (second target-link)))]
-          (find-build-dir-revision build-dir-url)))))
+              build-dir-url (str "https://archive.mozilla.org" (:href (second target-link)))]
+          ;; Try to obtain the revision for this build dir, or use the previous build dir if there's no revision in this one
+          ;; This is guaranteed to terminate since we recurse only on build dirs in a given month dir
+          (try
+            (find-build-dir-revision build-dir-url)
+            (catch AssertionError e ; Invalid build dir with no revision, just skip over it and go to the previous build dir link
+              (let [[_ year month day hour minute second] (re-find #"(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-[^/]+/" build-dir-url)
+                    preceding-buildid (str year month day hour minute second)]
+                   (find-preceding-build-revision preceding-buildid channel))))))))
 
 (defn find-build-changeset
   "Finds the changesets corresponding to the build with buildid `buildid`, which is a URL for a page with a list of all new changesets that went into that build."
