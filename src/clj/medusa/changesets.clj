@@ -81,7 +81,7 @@
               response (tagsoup/parse prev-build-dirs-url)
               links (elements-by-tag-name response :a)
               target-link (last (filter #(.endsWith (get % 2) build-dirs-suffix) links))
-              build-dir-url (str prev-build-dirs-url (:href (second target-link)))]
+              build-dir-url (str "https://archive.mozilla.org" (:href (second target-link)))]
           (find-build-dir-revision build-dir-url))
         (let [target-link (nth build-dirs-links target-link-index) ; get the build directory and the revision from the link
               build-dir-url (str "https://archive.mozilla.org" (:href (second target-link)))]
