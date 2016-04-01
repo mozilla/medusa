@@ -22,7 +22,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "dev" do |dev|
     dev.ssh.insert_key = false
-    dev.vm.box = "ubuntu/vivid64"
+    dev.vm.box = "ubuntu/wily64"
     dev.vm.network :forwarded_port, host: 8080, guest: 8080
     dev.vm.provision "ansible" do |ansible|
       ansible.host_key_checking = false
