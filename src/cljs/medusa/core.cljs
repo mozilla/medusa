@@ -23,8 +23,7 @@
       start-date (time/minus end-date (time/months 1))
       end-date (timef/unparse date-formatter end-date)
       start-date (timef/unparse date-formatter start-date)]
-  (def app-state (atom {:login {:user nil}
-                        :detectors []
+  (def app-state (atom {:detectors []
                         :metrics []
                         :alerts []
                         :subscriptions []
@@ -254,7 +253,7 @@
                                              (:metric_name %))
                                    alerts))]))))
 
-(defn description [{:keys [alerts selected-detector metrics-filter selected-metric login subscriptions]} owner]
+(defn description [{:keys [alerts selected-detector metrics-filter selected-metric subscriptions]} owner]
   (reify
     om/IRenderState
     (render-state [_ {:keys [event-channel]}]
@@ -269,18 +268,6 @@
                                                        (:detector subscriptions))
                                          [_ _] (some #(= metric-id (:metric_id %)) (:metric subscriptions))))))]
         (html [:div
-               (when (and selected-detector (:user login))
-                 [:form
-                  [:div.form-group.text-center
-                   [:label
-                    (html/check-box {:checked (is-subscribed?)
-                                     :ref "check-box"
-                                     :on-click (fn []
-                                                 (let [el (om/get-node owner "check-box")
-                                                       checked (.-checked el)]
-                                                   (put! event-channel [(if checked :subscribe :unsubscribe)])))}
-                                    "subscription-status")
-                    " Keep me posted about the current selection"]]])
                (om/build alerts-list {:alerts alerts
                                       :metrics-filter metrics-filter})])))))
 
@@ -326,43 +313,6 @@
     (.load js/google "visualization" "1" (clj->js {:packages ["corechart"]}))
     (.setOnLoadCallback js/google cb)
     ch))
-
-(defn persona [{:keys [user] :as state} owner]
-  (reify
-    om/IWillMount
-    (will-mount [_]
-      (let [event-channel (om/get-state owner :event-channel)
-            login (fn [assertion]
-                    (let [ch (chan)]
-                      (GET "/login" {:handler #(do (put! ch %) (close! ch))
-                                     :format :raw
-                                     :params {:assertion assertion}
-                                     :error-handler #(do (put! ch {}) (close! ch))})
-                      ch))
-            logout (fn []
-                     (let [ch (chan)]
-                       (GET "/logout" {:finally #(do (put! ch {}) (close! ch))})
-                       ch))]
-        (js/navigator.id.watch #js {:loggedInUser user
-                                    :onlogin (fn [assertion]
-                                               (go
-                                                 (let [user (<! (login assertion))
-                                                       email (:email user)]
-                                                   (put! event-channel [:login email]))))
-                                    :onlogout (fn []
-                                                (go
-                                                  (<! (logout))
-                                                  (put! event-channel [:logout nil])))})))
-
-    om/IRenderState
-    (render-state [_ _]
-      (html
-       [:div.text-right
-        [:button.btn.btn-default {:on-click (fn [_]
-                                              (if-not user
-                                                (js/navigator.id.request)
-                                                (js/navigator.id.logout)))}
-         (if user "Logout" "Login")]]))))
 
 (defn subscription-list [{{:keys [detector metric] :as subscriptions} :subscriptions
                           [from to] :selected-date-range}
@@ -519,17 +469,6 @@
                   (<! (change-subscription :unsubscribe))
                   (om/update! state :subscriptions (<! (load-subscriptions))))
 
-                :login
-                (let [subscriptions (<! (load-subscriptions))]
-                  (om/transact! state (fn [state]
-                                        (-> state
-                                            (assoc :subscriptions subscriptions)
-                                            (assoc-in [:login :user] message)))))
-
-                :logout
-                (om/transact! state (fn [state]
-                                      (assoc state :login {:user nil}, :subscriptions [])))
-
                 :query-has-changed
                 (let [[detector filter metric from to] message
                       extract-query #(select-keys @state [:selected-detector
@@ -575,9 +514,6 @@
               [:h1 "Telemetry alerts"]]
              [:div.row
               [:div.col-md-3
-               (om/build persona
-                         (:login state)
-                         {:init-state {:event-channel event-channel}})
                [:br]
                (om/build detector-list
                          (select-keys state [:detectors :selected-detector])
@@ -597,7 +533,6 @@
                                              :metrics-filter
                                              :selected-metric
                                              :alerts
-                                             :login
                                              :subscriptions])
                          {:init-state {:event-channel event-channel}})]]]))))
 
