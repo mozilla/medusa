@@ -26,6 +26,13 @@ ansible-playbook ansible/provision.yml -i ansible/inventory
 
 To run tests, run `lein test`.
 
+To deploy changes on production, notice that `lein` doesn't like overwriting files. You will either need to edit the project file so it deploys to a different filename or clear out `resources/public/medusa.js` before running
+```bash
+lein cljsbuild once release
+```
+
+You may also require `sudo`.
+
 ## Usage
 
 To launch the server simply yield `lein run`. Note that you must have a recent version of leiningen installed (> 2); some distributions ship with earlier versions.
