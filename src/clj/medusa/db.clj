@@ -242,7 +242,7 @@
                      (map :user_id)
                      (apply hash-set))
 
-        subs (let [subs (set/union metric-subs detector-subs)]
+        subs (let [subs (set/union metric-subs)]
                (map #(-> (select user (where (= :id %)))
                          first
                          :email)
