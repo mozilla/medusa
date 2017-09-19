@@ -24,6 +24,8 @@ To provision resources and deploy medusa on AWS, first edit `ansible/provision.y
 ansible-playbook ansible/provision.yml -i ansible/inventory
 ```
 
+To run tests, run `lein test`.
+
 ## Usage
 
 To launch the server simply yield `lein run`. Note that you must have a recent version of leiningen installed (> 2); some distributions ship with earlier versions.
