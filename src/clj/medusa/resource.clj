@@ -1,9 +1,7 @@
 (ns clj.medusa.resource
   (:require [liberator.core :refer [resource defresource by-method]]
             [cheshire.core :as json]
-            [org.httpkit.client :as http]
             [clojure.edn :as edn]
-            [clojure.set :as set]
             [clj.medusa.db :as db]
             [clj.medusa.alert :as alert]
             [taoensso.timbre :as timbre]))
