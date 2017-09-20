@@ -33,7 +33,12 @@
             changeset-url (changesets/find-build-changeset buildid "mozilla-central")]
         (log/info "Changeset URL" changeset-url)
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
-                    (str "Alert details: " alert-url "\n\n" "Changeset for " buildid ": " changeset-url)
+                    (str "Alert details: " alert-url
+                         "\n\n"
+                         "This changeset is for the first Nightly on the day of the detected regression, "
+                         "which may not be the Nightly that had the regression in it."
+                         "\n"
+                         "Changeset for " buildid ": " changeset-url)
                     (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))
       (catch Throwable e ; could not find revisions for the given build date
         (log/info e "Retrieving changeset failed")
