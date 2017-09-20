@@ -3,4 +3,4 @@ resources/public/out_dev/
 resources/medusa.sqlite
 .vagrant/
 target/
-
+/.lein-failures
