@@ -1,5 +1,6 @@
 (ns clj.medusa.changesets
-  (:require [clj-http.lite.client :as client]
+  (:require [clojure.string :refer [join]]
+            [clj-http.lite.client :as client]
             [pl.danieljanus.tagsoup :as tagsoup]))
 
 ;; This library finds changesets given build dates (dates of the form YYYY-MM-DD)
@@ -94,23 +95,27 @@
                     preceding-buildid (str year month day hour minute second)]
                    (find-preceding-build-revision preceding-buildid channel))))))))
 
-(defn find-build-changeset
-  "Finds the changesets corresponding to the build with buildid `buildid`, which is a URL for a page with a list of all new changesets that went into that build."
-  [buildid channel]
-  (let [from-revision (find-preceding-build-revision buildid channel)
-        to-revision (find-build-revision buildid channel)]
+(defn pushlog-url
+  "Returns a URL to a page detailing the changesets introduced between one buildid and another (inclusive)."
+  [earliest-build latest-build channel]
+  (let [from-revision (find-preceding-build-revision earliest-build channel)
+        to-revision (find-build-revision latest-build channel)]
     (format "https://hg.mozilla.org/%s/pushloghtml?fromchange=%s&tochange=%s"
             channel from-revision to-revision)))
 
-(defn find-date-buildid
-  "Determines the buildid (a date-time of the form YYYYMMDDhhmmss) corresponding to a given build date `date` (a date of the form YYYY-MM-DD) on the channel string `channel`, generally mozilla-central."
+(defn- buildid-from-dir
+  "Turn a directory name like '2017-09-21-10-01-41-mozilla-central/' into a buildid like 20170921100141."
+  [dir]
+  (join (rest (re-find #"^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})" dir))))
+
+(defn bounding-buildids
+  "Returns the buildids (date-times of the form YYYYMMDDhhmmss) of the first and last builds of a given `date` (a date of the form YYYY-MM-DD) and `channel` (generally mozilla-central)."
   [date channel]
-  (let [[_ year month day] (re-find #"^(\d{4})-(\d{2})-(\d{2})$" date)
-        build-dirs-suffix (format "-%s/" channel)
+  (let [[_ year month] (re-find #"^(\d{4})-(\d{2})-\d{2}$" date)
+        channel-suffix (format "-%s/" channel)
         build-dirs-url (format "https://archive.mozilla.org/pub/mozilla.org/firefox/nightly/%s/%s/" year month)
         response (tagsoup/parse build-dirs-url)
-        links (elements-by-tag-name response :a)
-        build-dirs-links (filter #(.endsWith (get % 2) build-dirs-suffix) links)
-        target-link (first (filter #(.startsWith (get % 2) date) build-dirs-links))
-        [_ hour minute second] (re-find #"^\d{4}-\d{2}-\d{2}-(\d{2})-(\d{2})-(\d{2})" (get target-link 2))]
-    (str year month day hour minute second)))
+        links (elements-by-tag-name response :a) ; [:a {} "2017-09-21-10-01-41-mozilla-central/"]
+        dirs (map #(% 2) links) ; "2017-09-21-10-01-41-mozilla-central/"
+        matching-dirs (filter #(and (.endsWith % channel-suffix) (.startsWith % date)) dirs)]
+    (map buildid-from-dir [(first matching-dirs) (last matching-dirs)])))
