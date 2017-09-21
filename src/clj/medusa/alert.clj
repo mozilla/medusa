@@ -19,6 +19,11 @@
                     :message {:subject subject
                               :body {:text body}})))
 
+(defn- build-range
+  "Returns 'abc123' if there's only 1 build. Otherwise, return 'abc123...def456'."
+  [earliest-build latest-build]
+  (if (= earliest-build latest-build) earliest-build (str earliest-build "..." latest-build)))
+
 (defn notify-subscribers [{:keys [metric_id date emails]}]
   (let [{:keys [hostname]} @config/state
         foreign_subscribers (when (seq emails) (string/split emails #","))
@@ -35,7 +40,7 @@
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url
                          "\n\n"
-                         "Changeset for " earliest-build "..." latest-build ": " changeset-url)
+                         "Changeset for " (build-range earliest-build latest-build) ": " changeset-url)
                     (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))
       (catch Throwable e ; could not find revisions for the given build date
         (log/info e "Retrieving changeset failed")
