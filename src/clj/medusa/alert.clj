@@ -19,6 +19,11 @@
                     :message {:subject subject
                               :body {:text body}})))
 
+(defn- build-range
+  "Returns 'abc123' if there's only 1 build. Otherwise, return 'abc123...def456'."
+  [earliest-build latest-build]
+  (if (= earliest-build latest-build) earliest-build (str earliest-build "..." latest-build)))
+
 (defn notify-subscribers [{:keys [metric_id date emails]}]
   (let [{:keys [hostname]} @config/state
         foreign_subscribers (when (seq emails) (string/split emails #","))
@@ -29,16 +34,13 @@
         subscribers (db/get-subscribers-for-metric metric_id)
         alert-url (str "http://" hostname "/index.html#/detectors/" detector_id "/metrics/" metric_id "/alerts/?from=" date "&to=" date)]
     (try
-      (let [buildid (changesets/find-date-buildid date "mozilla-central") ; get the buildid for the given date
-            changeset-url (changesets/find-build-changeset buildid "mozilla-central")]
+      (let [[earliest-build latest-build] (changesets/bounding-buildids date "mozilla-central") ; get the buildids for the given date
+            changeset-url (changesets/pushlog-url earliest-build latest-build "mozilla-central")]
         (log/info "Changeset URL" changeset-url)
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url
                          "\n\n"
-                         "This changeset is for the first Nightly on the day of the detected regression, "
-                         "which may not be the Nightly that had the regression in it."
-                         "\n"
-                         "Changeset for " buildid ": " changeset-url)
+                         "Changeset for " (build-range earliest-build latest-build) ": " changeset-url)
                     (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))
       (catch Throwable e ; could not find revisions for the given build date
         (log/info e "Retrieving changeset failed")
