@@ -1,7 +1,7 @@
 Medusa
 ======
 
-[Medusa](http://alerts.telemetry.mozilla.org/index.html) (also known as Telemetry Alerts) is a tracking, alerting, and visualization service for regressions in [Telemetry](http://telemetry.mozilla.org/). It aims to provide a unified frontend for managing regression alerts.
+[Medusa](https://alerts.telemetry.mozilla.org/index.html) (also known as Telemetry Alerts) is a tracking, alerting, and visualization service for regressions in [Telemetry](https://telemetry.mozilla.org/). It aims to provide a unified frontend for managing regression alerts.
 
 Medusa does not perform detection of regressions by itself; it exposes an API that **detectors** - services that detect regressions - can post to. For example, [Cerberus](https://github.com/mozilla/cerberus#readme) is a detector for histogram regressions.
 
@@ -11,7 +11,7 @@ Medusa is written in [Clojure/Clojurescript](http://clojure.org/), and uses [Rin
 
 ## Development and deployment
 
-First, make sure you have [Vagrant](https://www.vagrantup.com/) and [Ansible](http://www.ansible.com/home).
+First, make sure you have [Vagrant](https://www.vagrantup.com/) and [Ansible](https://www.ansible.com/home).
 
 To start hacking on your local machine:
 ```bash
