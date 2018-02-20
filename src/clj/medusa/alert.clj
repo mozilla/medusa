@@ -16,6 +16,7 @@
     (ses/send-email {:endpoint "us-west-2"}
                      :destination {:to-addresses destinations}
                      :source "telemetry-alerts@mozilla.com"
+                     :return-path "telemetry-alert-bounces@mozilla.com"
                      :message {:subject subject
                                :body {:text body}})))
 
