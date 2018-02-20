@@ -14,10 +14,10 @@
         (println "BODY: " subject)
         (println "===================================================="))
     (ses/send-email {:endpoint "us-west-2"}
-                    :destination {:to-addresses destinations}
-                    :source "telemetry-alerts@mozilla.com"
-                    :message {:subject subject
-                              :body {:text body}})))
+                     :destination {:to-addresses destinations}
+                     :source "telemetry-alerts@mozilla.com"
+                     :message {:subject subject
+                               :body {:text body}})))
 
 (defn- build-range
   "Returns 'abc123' if there's only 1 build. Otherwise, return 'abc123...def456'."
