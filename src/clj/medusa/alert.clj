@@ -33,7 +33,8 @@
          metric_id :id} (db/get-metric metric_id)
         {detector_name :name} (db/get-detector detector_id)
         subscribers (db/get-subscribers-for-metric metric_id)
-        alert-url (str "http://" hostname "/index.html#/detectors/" detector_id "/metrics/" metric_id "/alerts/?from=" date "&to=" date)]
+        alert-url (str "http://" hostname "/index.html#/detectors/" detector_id "/metrics/" metric_id "/alerts/?from=" date "&to=" date)
+        evo-url (str "https://telemetry.mozilla.org/new-pipeline/evo.html#!measure=" metric_name)]
     (try
       (let [[earliest-build latest-build] (changesets/bounding-buildids date "mozilla-central") ; get the buildids for the given date
             changeset-url (changesets/pushlog-url earliest-build latest-build "mozilla-central")]
@@ -41,10 +42,14 @@
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url
                          "\n\n"
+                         "Evolution dashboard: " evo-url
+                         "\n\n"
                          "Changeset for " (build-range earliest-build latest-build) ": " changeset-url)
                     (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))
       (catch Throwable e ; could not find revisions for the given build date
         (log/info e "Retrieving changeset failed")
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url)
+                         "\n\n"
+                         "Evolution dashboard: " evo-url
                     (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"]))))))
