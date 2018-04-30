@@ -45,11 +45,11 @@
                          "Evolution dashboard: " evo-url
                          "\n\n"
                          "Changeset for " (build-range earliest-build latest-build) ": " changeset-url)
-                    (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"])))
+                    (concat subscribers foreign_subscribers ["mozilla.dev.telemetry-alerts@googlegroups.com"])))
       (catch Throwable e ; could not find revisions for the given build date
         (log/info e "Retrieving changeset failed")
         (send-email (str "Alert for " metric_name " (" detector_name ") on " date)
                     (str "Alert details: " alert-url)
                          "\n\n"
                          "Evolution dashboard: " evo-url
-                    (concat subscribers foreign_subscribers ["dev-telemetry-alerts@lists.mozilla.org"]))))))
+                    (concat subscribers foreign_subscribers ["mozilla.dev.telemetry-alerts@googlegroups.com"]))))))
