@@ -59,6 +59,7 @@
                          "If you have any problems, please ask for help on the #telemetry IRC channel or on Slack in #fx-metrics. We'll give you a hand."
                          "\n\n"
                          "What this is:"
+                         "\n"
                          "We have a system called cerberus[1] that compares Telemetry collected on different Nightly builds and "
                          "looks for sudden changed in value distributions using the Bhattacharyya Distance[2]. It found such a "
                          "change in " metric_name " on " date " so it asked its buddy medusa[3] to send this email to the "
