@@ -54,7 +54,7 @@
                          "\n"
                          "2. Reply-All to this email to let the list know that you are investigating. Include the bug number so we can help out."
                          "\n"
-                         "3. Triage the alert. You can find instructions here: " alert-url
+                         "3. Triage the alert. You can find instructions here: https://docs.telemetry.mozilla.org/tools/alerts.html#triaging-a-telemetry-alert-email"
                          "\n\n"
                          "If you have any problems, please ask for help on the #telemetry IRC channel or on Slack in #fx-metrics. We'll give you a hand."
                          "\n\n"
